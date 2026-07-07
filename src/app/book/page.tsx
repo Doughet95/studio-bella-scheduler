@@ -3,6 +3,8 @@ import { BookingWizard } from '@/components/booking/booking-wizard'
 import Link from 'next/link'
 import { Sparkles, ArrowLeft } from 'lucide-react'
 
+import { Suspense } from 'react'
+
 export const metadata: Metadata = {
   title: 'Agendar Horário',
   description: 'Agende seu horário de design de sobrancelhas ou extensão de cílios online.',
@@ -38,7 +40,9 @@ export default function BookPage() {
           </p>
         </div>
 
-        <BookingWizard />
+        <Suspense fallback={<div className="h-40 w-full animate-pulse bg-muted rounded-xl" />}>
+          <BookingWizard />
+        </Suspense>
       </main>
     </div>
   )
