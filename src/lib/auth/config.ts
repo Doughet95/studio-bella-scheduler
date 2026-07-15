@@ -37,6 +37,7 @@ async function generateSupabaseToken(userId: string, email: string): Promise<str
 }
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET || 'supersecret-nextauth-key-for-local-demo-12345',
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
