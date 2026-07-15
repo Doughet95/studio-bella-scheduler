@@ -8,15 +8,14 @@ export async function GET(req: Request) {
   if (!date) return NextResponse.json({ error: 'Date is required' }, { status: 400 })
 
   const selectedDate = new Date(date)
-  const isSunday = selectedDate.getUTCDay() === 0
+  const dayOfWeek = selectedDate.getUTCDay() // 0 = Sunday, 1 = Monday, etc.
 
-  // Se for domingo, não tem horários disponíveis
-  if (isSunday) {
+  // Busca a configuração exata de horários para este dia da semana
+  const times = mockDb.weeklySchedule[dayOfWeek] || []
+
+  if (times.length === 0) {
     return NextResponse.json({ data: [] })
   }
-
-  // Horários fixos solicitados
-  const times = ['08:00', '10:00', '14:00', '16:00', '18:00']
   
   const data = times.map(time => {
     // Verifica se já existe agendamento neste dia e horário no mockDb

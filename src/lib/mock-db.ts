@@ -31,4 +31,16 @@ export const mockDb = {
       }
     }
   ] as Array<{ id?: string, date: string; time: string; status?: string; [key: string]: any }>,
+  
+  // Weekly schedule mapping (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  // Each day contains an array of specific available times.
+  weeklySchedule: {
+    0: [] as string[],
+    1: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Monday
+    2: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Tuesday
+    3: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Wednesday
+    4: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Thursday
+    5: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Friday
+    6: ['08:00', '10:00', '14:00', '16:00'], // Saturday
+  } as Record<number, string[]>,
 }
