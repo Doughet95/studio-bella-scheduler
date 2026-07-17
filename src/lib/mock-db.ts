@@ -43,4 +43,28 @@ export const mockDb = {
     5: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Friday
     6: ['08:00', '10:00', '14:00', '16:00'], // Saturday
   } as Record<number, string[]>,
+
+  clients: [
+    {
+      id: 'client-1',
+      name: 'Maria Silva',
+      email: 'maria@example.com',
+      phone: '(11) 99999-9999',
+      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
+    },
+    {
+      id: 'client-2',
+      name: 'Ana Souza',
+      email: 'ana.souza@email.com',
+      phone: '(11) 98888-7777',
+      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() // 2 days ago
+    },
+    {
+      id: 'client-3',
+      name: 'Carla Dias',
+      email: 'carladias@email.com',
+      phone: '(11) 97777-6666',
+      created_at: new Date().toISOString() // today
+    }
+  ] as Array<{ id: string, name: string; email: string; phone: string; created_at: string }>,
 }
