@@ -11,11 +11,11 @@ export default function Home() {
         <Image 
           src="/finance-bg.jpg" 
           fill 
-          className="object-cover opacity-20 md:opacity-30 mix-blend-screen" 
+          className="object-cover opacity-60 md:opacity-80 mix-blend-screen dark:mix-blend-plus-lighter" 
           alt="Finance Background" 
           priority 
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/80 to-background z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/70 to-background z-10" />
       </div>
 
       <header className="fixed top-0 w-full z-50 bg-background/40 backdrop-blur-xl border-b border-white/5">
