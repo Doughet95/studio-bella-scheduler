@@ -96,13 +96,15 @@ export default function DashboardPage() {
       {unnecessaryExpenses > 0 && (
         <Card className="border-secondary/30 bg-secondary/5">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <PiggyBank className="w-5 h-5 text-secondary" />
-              Alerta de Economia
+            <CardTitle className="text-lg flex items-center gap-2 text-secondary">
+              <PiggyBank className="w-5 h-5" />
+              Alerta de Inteligência Artificial
             </CardTitle>
-            <CardDescription>
-              Você gastou <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unnecessaryExpenses)}</strong> em coisas desnecessárias recentemente.
-              Se você cortar esses gastos pela metade, poderá guardar <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unnecessaryExpenses / 2)}</strong> para sua reserva de emergência!
+            <CardDescription className="text-foreground/80 mt-2 text-sm leading-relaxed">
+              O sistema analisou seus gastos e identificou que você gastou <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unnecessaryExpenses)}</strong> em coisas desnecessárias recentemente 
+              (como aplicativos de delivery, serviços de streaming, e compras de lazer).
+              <br /><br />
+              Se você cortar esses gastos supérfluos pela metade neste mês, poderá guardar <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unnecessaryExpenses / 2)}</strong> direto para sua reserva de emergência!
             </CardDescription>
           </CardHeader>
         </Card>

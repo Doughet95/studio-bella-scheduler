@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon } from 'lucide-react'
+import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles } from 'lucide-react'
 import { Transaction } from '@/lib/mock-db'
 
 export default function TransactionsPage() {
@@ -19,7 +19,6 @@ export default function TransactionsPage() {
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [type, setType] = useState<'income'|'expense'>('expense')
-  const [necessity, setNecessity] = useState<'essential'|'unnecessary'|'investment'|'none'>('essential')
 
   useEffect(() => {
     fetchTransactions()
@@ -46,9 +45,7 @@ export default function TransactionsPage() {
           description: desc,
           amount: parseFloat(amount),
           date,
-          category: type === 'income' ? 'Renda' : 'Gasto',
-          type,
-          necessity: type === 'income' ? 'none' : necessity
+          type
         })
       })
       if (!res.ok) throw new Error('Falha ao adicionar')
@@ -107,20 +104,10 @@ export default function TransactionsPage() {
                   <Input required type="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
 
-                {type === 'expense' && (
-                  <div className="space-y-2">
-                    <Label>Classificação</Label>
-                    <select 
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      value={necessity} 
-                      onChange={e => setNecessity(e.target.value as any)}
-                    >
-                      <option value="essential">Essencial (Contas, Aluguel, Feira)</option>
-                      <option value="unnecessary">Desnecessário (Delivery, Supérfluos)</option>
-                      <option value="investment">Investimento (Cursos, Ferramentas)</option>
-                    </select>
-                  </div>
-                )}
+                <div className="pt-2 text-xs text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-primary" /> 
+                  O sistema classificará automaticamente seus gastos inteligentemente.
+                </div>
 
                 <Button type="submit" disabled={adding} className="w-full gap-2 mt-2">
                   {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
