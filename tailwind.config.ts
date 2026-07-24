@@ -110,8 +110,8 @@ const config: Config = {
           '50%': { opacity: '0.7' },
         },
         glow: {
-          '0%, 100%': { boxShadow: '0 0 8px 2px hsl(340 40% 48% / 0.3)' },
-          '50%': { boxShadow: '0 0 20px 6px hsl(340 40% 48% / 0.5)' },
+          '0%, 100%': { boxShadow: '0 0 8px 2px hsl(142 76% 36% / 0.3)' },
+          '50%': { boxShadow: '0 0 20px 6px hsl(142 76% 36% / 0.5)' },
         },
       },
       animation: {
@@ -125,15 +125,15 @@ const config: Config = {
         glow: 'glow 2s ease-in-out infinite',
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, hsl(340, 40%, 48%) 0%, hsl(42, 55%, 45%) 100%)',
-        'gradient-dark': 'linear-gradient(135deg, hsl(340, 30%, 10%) 0%, hsl(280, 25%, 8%) 100%)',
-        'gradient-card': 'linear-gradient(145deg, hsl(340, 15%, 15%) 0%, hsl(280, 12%, 12%) 100%)',
-        'gradient-glow': 'radial-gradient(ellipse at center, hsl(340 40% 48% / 0.15) 0%, transparent 70%)',
+        'gradient-brand': 'linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(217, 91%, 60%) 100%)',
+        'gradient-dark': 'linear-gradient(135deg, hsl(222, 84%, 5%) 0%, hsl(222, 84%, 10%) 100%)',
+        'gradient-card': 'linear-gradient(145deg, hsl(222, 84%, 8%) 0%, hsl(222, 84%, 12%) 100%)',
+        'gradient-glow': 'radial-gradient(ellipse at center, hsl(142 76% 36% / 0.15) 0%, transparent 70%)',
       },
       boxShadow: {
-        brand: '0 4px 24px hsl(340 40% 48% / 0.25)',
-        gold: '0 4px 24px hsl(42 55% 45% / 0.25)',
-        'card-hover': '0 8px 32px hsl(340 40% 48% / 0.15)',
+        brand: '0 4px 24px hsl(142 76% 36% / 0.25)',
+        gold: '0 4px 24px hsl(217 91% 60% / 0.25)',
+        'card-hover': '0 8px 32px hsl(142 76% 36% / 0.15)',
         glass: 'inset 0 1px 0 hsl(0 0% 100% / 0.05)',
       },
     },
