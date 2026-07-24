@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { Sparkles, Wallet, PiggyBank, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Home() {
   return (
@@ -15,7 +14,6 @@ export default function Home() {
             <span className="font-display font-bold text-lg text-gradient">Minhas Finanças</span>
           </div>
           <div className="flex items-center gap-4">
-            <ThemeToggle />
             <Link href="/login">
               <Button variant="ghost" className="hidden sm:inline-flex">Entrar</Button>
             </Link>
