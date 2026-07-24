@@ -6,12 +6,9 @@ export default withAuth(
     const { token } = req.nextauth
     const { pathname } = req.nextUrl
 
-    // Admin-only routes
-    const adminRoutes = ['/dashboard/reports', '/dashboard/services', '/dashboard/settings']
-    if (adminRoutes.some((route) => pathname.startsWith(route))) {
-      if (token?.role !== 'admin') {
-        return NextResponse.redirect(new URL('/dashboard', req.url))
-      }
+    // Se o usuário está logado e tenta ir para a raiz, mandar para dashboard
+    if (token && (pathname === '/' || pathname === '/login')) {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
     return NextResponse.next()
@@ -22,10 +19,6 @@ export default withAuth(
         const { pathname } = req.nextUrl
         // Proteger rotas /dashboard/*
         if (pathname.startsWith('/dashboard')) {
-          return !!token && (token.role === 'admin' || token.role === 'professional')
-        }
-        // Qualquer usuário logado pode ver /my-appointments
-        if (pathname.startsWith('/my-appointments')) {
           return !!token
         }
         return true
@@ -35,5 +28,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/my-appointments/:path*'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }

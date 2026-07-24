@@ -40,12 +40,7 @@ export default function LoginPage() {
         return
       }
 
-      const pendingBooking = localStorage.getItem('pendingBooking')
-      if (pendingBooking) {
-        router.push('/book?resume=true')
-      } else {
-        router.push('/dashboard')
-      }
+      router.push('/dashboard')
     } finally {
       setIsLoading(false)
     }
@@ -65,7 +60,7 @@ export default function LoginPage() {
             <Sparkles className="w-7 h-7 text-white" />
           </div>
           <h1 className="font-display text-2xl font-bold text-gradient">Minhas Finanças</h1>
-          <p className="text-muted-foreground text-sm mt-1">Área profissional</p>
+          <p className="text-muted-foreground text-sm mt-1">Conta Conjunta</p>
         </div>
 
         {/* Form */}
@@ -136,24 +131,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-        </div>
-
-        <div className="flex flex-col items-center gap-3 mt-6">
-          <p className="text-center text-sm text-muted-foreground">
-            Ainda não tem conta?{' '}
-            <Link href="/register/client" className="text-primary hover:underline font-medium">
-              Crie aqui
-            </Link>
-          </p>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">
-              ← Voltar para o site
-            </Link>
-            <span>•</span>
-            <Link href="/register/admin" className="hover:text-foreground transition-colors">
-              Cadastro Profissional
-            </Link>
-          </div>
         </div>
       </div>
     </div>
