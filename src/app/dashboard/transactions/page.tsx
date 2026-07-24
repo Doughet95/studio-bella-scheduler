@@ -139,12 +139,22 @@ export default function TransactionsPage() {
                         </div>
                         <div>
                           <p className="font-medium text-foreground">{t.description}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                             <span>{new Date(t.date).toLocaleDateString('pt-BR')}</span>
-                            {t.type === 'expense' && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-semibold ${t.necessity === 'unnecessary' ? 'bg-secondary/20 text-secondary' : 'bg-primary/10 text-primary'}`}>
-                                {t.necessity === 'unnecessary' ? 'Evitável' : t.necessity === 'essential' ? 'Essencial' : 'Investimento'}
+                            <span className="opacity-50">•</span>
+                            <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-foreground/80">
+                              <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold">
+                                {t.authorName ? t.authorName.charAt(0).toUpperCase() : '?'}
                               </span>
+                              {t.authorName?.split(' ')[0] || 'Desconhecido'}
+                            </span>
+                            {t.type === 'expense' && (
+                              <>
+                                <span className="opacity-50">•</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-semibold ${t.necessity === 'unnecessary' ? 'bg-secondary/20 text-secondary' : 'bg-primary/10 text-primary'}`}>
+                                  {t.necessity === 'unnecessary' ? 'Evitável' : t.necessity === 'essential' ? 'Essencial' : 'Investimento'}
+                                </span>
+                              </>
                             )}
                           </div>
                         </div>

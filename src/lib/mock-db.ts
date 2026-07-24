@@ -7,6 +7,7 @@ export interface Transaction {
   type: 'income' | 'expense'
   necessity: 'essential' | 'unnecessary' | 'investment' | 'none'
   created_at: string
+  authorName?: string
 }
 
 export interface Goal {
@@ -34,7 +35,8 @@ export const mockDb = {
       category: 'Renda',
       type: 'income',
       necessity: 'none',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      authorName: 'Douglas Teixeira'
     },
     {
       id: 'tx-2',
@@ -44,7 +46,8 @@ export const mockDb = {
       category: 'Alimentação',
       type: 'expense',
       necessity: 'unnecessary',
-      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      authorName: 'Douglas Teixeira'
     },
     {
       id: 'tx-3',
@@ -54,7 +57,8 @@ export const mockDb = {
       category: 'Moradia',
       type: 'expense',
       necessity: 'essential',
-      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      authorName: 'Tairine Rodrigues'
     }
   ] as Transaction[]
 }

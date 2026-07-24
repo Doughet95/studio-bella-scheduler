@@ -61,7 +61,8 @@ export async function POST(req: Request) {
       category: body.type === 'income' ? 'Renda' : (autoNecessity === 'unnecessary' ? 'Lazer/Supérfluo' : 'Essencial'),
       type: body.type,
       necessity: autoNecessity,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      authorName: session.user.name || 'Desconhecido'
     }
 
     mockDb.transactions.push(newTransaction)
