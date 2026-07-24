@@ -1,70 +1,45 @@
-export const mockDb = {
-  bookings: [
-    {
-      id: 'app-1',
-      date: new Date().toISOString().split('T')[0],
-      time: '14:00',
-      client_id: 'client-1',
-      professional_id: '50e68e4f-2d93-4a1e-ab22-2580c8dc29cf',
-      service_id: 'a127a3c7-4b71-4827-84bc-589dfd04085f',
-      scheduled_at: new Date().toISOString().split('T')[0] + 'T14:00:00Z',
-      duration_minutes: 60,
-      price: 150,
-      notes: 'Mock appointment',
-      status: 'pending',
-      client: {
-        id: 'client-1',
-        name: 'Maria Silva',
-        email: 'maria@example.com',
-        phone: '(11) 99999-9999'
-      },
-      professional: {
-        id: '50e68e4f-2d93-4a1e-ab22-2580c8dc29cf',
-        profile: { name: 'Isabella Costa', avatar_url: null }
-      },
-      service: {
-        id: 'a127a3c7-4b71-4827-84bc-589dfd04085f',
-        name: 'Extensão de Cílios - Fio a Fio',
-        duration_minutes: 120,
-        price: 150,
-        category: 'cilios'
-      }
-    }
-  ] as Array<{ id?: string, date: string; time: string; status?: string; [key: string]: any }>,
-  
-  // Weekly schedule mapping (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-  // Each day contains an array of specific available times.
-  weeklySchedule: {
-    0: [] as string[],
-    1: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Monday
-    2: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Tuesday
-    3: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Wednesday
-    4: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Thursday
-    5: ['08:00', '10:00', '14:00', '16:00', '18:00'], // Friday
-    6: ['08:00', '10:00', '14:00', '16:00'], // Saturday
-  } as Record<number, string[]>,
+export interface Transaction {
+  id: string
+  date: string
+  amount: number
+  description: string
+  category: string
+  type: 'income' | 'expense'
+  necessity: 'essential' | 'unnecessary' | 'investment' | 'none'
+  created_at: string
+}
 
-  clients: [
+export const mockDb = {
+  transactions: [
     {
-      id: 'client-1',
-      name: 'Maria Silva',
-      email: 'maria@example.com',
-      phone: '(11) 99999-9999',
-      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
+      id: 'tx-1',
+      date: new Date().toISOString().split('T')[0],
+      amount: 5000,
+      description: 'Salário',
+      category: 'Renda',
+      type: 'income',
+      necessity: 'none',
+      created_at: new Date().toISOString()
     },
     {
-      id: 'client-2',
-      name: 'Ana Souza',
-      email: 'ana.souza@email.com',
-      phone: '(11) 98888-7777',
-      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() // 2 days ago
+      id: 'tx-2',
+      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      amount: 150,
+      description: 'Ifood (Lanche)',
+      category: 'Alimentação',
+      type: 'expense',
+      necessity: 'unnecessary',
+      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
     },
     {
-      id: 'client-3',
-      name: 'Carla Dias',
-      email: 'carladias@email.com',
-      phone: '(11) 97777-6666',
-      created_at: new Date().toISOString() // today
+      id: 'tx-3',
+      date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      amount: 800,
+      description: 'Aluguel',
+      category: 'Moradia',
+      type: 'expense',
+      necessity: 'essential',
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
     }
-  ] as Array<{ id: string, name: string; email: string; phone: string; created_at: string }>,
+  ] as Transaction[]
 }

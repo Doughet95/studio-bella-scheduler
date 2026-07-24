@@ -64,7 +64,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-brand flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-7 h-7 text-white" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-gradient">Studio Bella</h1>
+          <h1 className="font-display text-2xl font-bold text-gradient">Minhas Finanças</h1>
           <p className="text-muted-foreground text-sm mt-1">Área profissional</p>
         </div>
 

@@ -4,18 +4,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
-  LayoutDashboard, Calendar, Users, Scissors, BarChart2,
-  Settings, LogOut, Sparkles, ChevronRight
+  LayoutDashboard, PieChart, Wallet, Target, Settings, LogOut, Sparkles, ChevronRight
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/dashboard/appointments', icon: Calendar, label: 'Agendamentos' },
-  { href: '/dashboard/clients', icon: Users, label: 'Clientes' },
-  { href: '/dashboard/services', icon: Scissors, label: 'Serviços' },
-  { href: '/dashboard/reports', icon: BarChart2, label: 'Relatórios' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
+  { href: '/dashboard/transactions', icon: Wallet, label: 'Lançamentos' },
+  { href: '/dashboard/insights', icon: PieChart, label: 'Relatórios' },
+  { href: '/dashboard/goals', icon: Target, label: 'Metas' },
   { href: '/dashboard/settings', icon: Settings, label: 'Configurações' },
 ]
 
@@ -40,8 +38,8 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="font-display font-bold text-sm text-gradient leading-tight">Studio Bella</p>
-            <p className="text-[10px] text-muted-foreground capitalize">{user.role ?? 'Admin'}</p>
+            <p className="font-display font-bold text-sm text-gradient leading-tight">Minhas Finanças</p>
+            <p className="text-[10px] text-muted-foreground capitalize">Controle Pessoal</p>
           </div>
         </Link>
       </div>
