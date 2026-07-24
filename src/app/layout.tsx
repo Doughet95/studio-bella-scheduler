@@ -19,19 +19,19 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Studio Bella — Design de Sobrancelhas & Cílios',
-    template: '%s | Studio Bella',
+    default: 'Minhas Finanças — Controle Financeiro',
+    template: '%s | Minhas Finanças',
   },
   description:
-    'Agende seu horário online para design de sobrancelhas e extensão de cílios. Atendimento premium, profissional especializada.',
-  keywords: ['sobrancelhas', 'cílios', 'extensão de cílios', 'design de sobrancelhas', 'agendamento online'],
-  authors: [{ name: 'Studio Bella' }],
+    'Controle suas finanças pessoais de forma inteligente. Acompanhe gastos, metas e construa sua reserva de emergência.',
+  keywords: ['finanças', 'controle financeiro', 'despesas', 'metas', 'reserva de emergência'],
+  authors: [{ name: 'Minhas Finanças' }],
   openGraph: {
     type: 'website',
     locale: 'pt_BR',
-    siteName: 'Studio Bella',
-    title: 'Studio Bella — Design de Sobrancelhas & Cílios',
-    description: 'Agende seu horário online para design de sobrancelhas e extensão de cílios.',
+    siteName: 'Minhas Finanças',
+    title: 'Minhas Finanças — Controle Financeiro',
+    description: 'Controle suas finanças pessoais de forma inteligente.',
   },
   robots: {
     index: true,
