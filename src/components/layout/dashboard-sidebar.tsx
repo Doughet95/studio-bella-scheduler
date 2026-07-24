@@ -38,8 +38,8 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="font-display font-bold text-sm text-gradient leading-tight">Minhas Finanças</p>
-            <p className="text-[10px] text-muted-foreground capitalize">Controle Pessoal</p>
+            <p className="font-display font-bold text-sm text-gradient leading-tight">{user?.name || 'Minhas Finanças'}</p>
+            <p className="text-[10px] text-muted-foreground capitalize">Conta Conjunta</p>
           </div>
         </Link>
       </div>

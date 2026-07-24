@@ -51,14 +51,31 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Senha', type: 'password' },
       },
       async authorize(credentials) {
-        // Mock login para demo (aceita qualquer credencial)
-        return {
-          id: 'admin-1',
-          email: credentials?.email || 'admin@studiobella.com',
-          name: 'Admin Studio Bella',
-          image: null,
-          role: 'admin',
+        if (!credentials?.email) return null
+        
+        const email = credentials.email.toLowerCase()
+        
+        if (email === 'douglas.smart20@gmail.com') {
+          return {
+            id: 'user-douglas',
+            email: 'douglas.smart20@gmail.com',
+            name: 'Douglas Teixeira',
+            image: null,
+            role: 'owner',
+          }
         }
+        
+        if (email === 'doughet36@gmail.com') {
+          return {
+            id: 'user-tairine',
+            email: 'doughet36@gmail.com',
+            name: 'Tairine Rodrigues',
+            image: null,
+            role: 'owner',
+          }
+        }
+
+        return null
       },
     }),
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET

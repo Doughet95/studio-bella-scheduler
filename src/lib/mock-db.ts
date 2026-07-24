@@ -9,7 +9,22 @@ export interface Transaction {
   created_at: string
 }
 
+export interface Goal {
+  id: string
+  name: string
+  target_amount: number | null // null means "undefined value, just saving"
+  current_amount: number
+}
+
 export const mockDb = {
+  goals: [
+    {
+      id: 'goal-1',
+      name: 'Reserva de Emergência',
+      target_amount: 10000,
+      current_amount: 1500
+    }
+  ] as Goal[],
   transactions: [
     {
       id: 'tx-1',
