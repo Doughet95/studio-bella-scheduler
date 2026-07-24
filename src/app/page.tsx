@@ -28,9 +28,6 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login">
-              <Button variant="ghost" className="hidden sm:inline-flex hover:bg-white/5 text-foreground">Entrar</Button>
-            </Link>
-            <Link href="/login">
               <Button className="bg-gradient-brand text-white border-0 shadow-brand hover:opacity-90 transition-opacity">Acessar</Button>
             </Link>
           </div>
