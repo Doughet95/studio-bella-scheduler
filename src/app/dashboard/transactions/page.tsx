@@ -48,13 +48,16 @@ export default function TransactionsPage() {
           type
         })
       })
-      if (!res.ok) throw new Error('Falha ao adicionar')
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Falha ao adicionar')
+      }
       
       toast({ title: 'Lançamento adicionado com sucesso!' })
       fetchTransactions() // Refresh list
       setDesc(''); setAmount('')
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Erro ao adicionar' })
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro ao adicionar', description: error.message })
     } finally {
       setAdding(false)
     }
@@ -144,9 +147,9 @@ export default function TransactionsPage() {
                             <span className="opacity-50">•</span>
                             <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-foreground/80">
                               <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold">
-                                {t.authorName ? t.authorName.charAt(0).toUpperCase() : '?'}
+                                {((t as any).author_name || t.authorName) ? ((t as any).author_name || t.authorName).charAt(0).toUpperCase() : '?'}
                               </span>
-                              {t.authorName?.split(' ')[0] || 'Desconhecido'}
+                              {((t as any).author_name || t.authorName)?.split(' ')[0] || 'Desconhecido'}
                             </span>
                             {t.type === 'expense' && (
                               <>
