@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { mockDb, Transaction } from '@/lib/mock-db'
+import { supabase } from '@/lib/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
 
@@ -9,11 +9,22 @@ export async function GET() {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
-  const sorted = [...mockDb.transactions].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  )
+  // Se o Supabase não estiver configurado ainda, evita quebrar a tela retornando vazio
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ data: [] })
+  }
 
-  return NextResponse.json({ data: sorted })
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ data })
 }
 
 export async function POST(req: Request) {
@@ -25,26 +36,19 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     
-    // Motor de Classificação Automática
     let autoNecessity: 'essential' | 'unnecessary' | 'investment' | 'none' = 'essential'
     
     if (body.type === 'income') {
       autoNecessity = 'none'
     } else {
       const desc = body.description.toLowerCase()
-      
-      // Dicionário de palavras-chave para gastos desnecessários / evitáveis
       const unnecessaryKeywords = [
         'ifood', 'uber', '99', 'shopee', 'shein', 'aliexpress', 
         'netflix', 'spotify', 'amazon prime', 'cinema', 'ingresso', 
         'bar', 'cerveja', 'lanche', 'pizza', 'mcdonalds', 'bk', 'burger',
         'sorvete', 'doce', 'shopping', 'roupa', 'sapato'
       ]
-      
-      // Dicionário para investimentos/educação
-      const investmentKeywords = [
-        'curso', 'livro', 'treinamento', 'poupança', 'tesouro', 'ações'
-      ]
+      const investmentKeywords = ['curso', 'livro', 'treinamento', 'poupança', 'tesouro', 'ações']
 
       if (unnecessaryKeywords.some(keyword => desc.includes(keyword))) {
         autoNecessity = 'unnecessary'
@@ -53,22 +57,30 @@ export async function POST(req: Request) {
       }
     }
     
-    const newTransaction: Transaction = {
-      id: `tx-${Date.now()}`,
+    const newTransaction = {
       date: body.date,
       amount: Number(body.amount),
       description: body.description,
       category: body.type === 'income' ? 'Renda' : (autoNecessity === 'unnecessary' ? 'Lazer/Supérfluo' : 'Essencial'),
       type: body.type,
       necessity: autoNecessity,
-      created_at: new Date().toISOString(),
-      authorName: session.user.name || 'Desconhecido'
+      author_name: session.user.name || 'Desconhecido'
     }
 
-    mockDb.transactions.push(newTransaction)
-    
-    return NextResponse.json({ data: newTransaction })
-  } catch (error) {
-    return NextResponse.json({ error: 'Erro ao criar transação' }, { status: 400 })
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return NextResponse.json({ error: 'Banco de dados não configurado' }, { status: 500 })
+    }
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert([newTransaction])
+      .select()
+      .single()
+      
+    if (error) throw error
+
+    return NextResponse.json({ data })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Erro ao criar transação' }, { status: 400 })
   }
 }
