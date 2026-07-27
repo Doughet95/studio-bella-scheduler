@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles } from 'lucide-react'
+import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles, Trash2 } from 'lucide-react'
 import { Transaction } from '@/lib/mock-db'
 
 export default function TransactionsPage() {
@@ -60,6 +60,22 @@ export default function TransactionsPage() {
       toast({ variant: 'destructive', title: 'Erro ao adicionar', description: error.message })
     } finally {
       setAdding(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja apagar este lançamento?')) return
+
+    try {
+      const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Falha ao apagar')
+      }
+      toast({ title: 'Lançamento apagado!' })
+      fetchTransactions()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: error.message })
     }
   }
 
@@ -162,8 +178,13 @@ export default function TransactionsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className={`font-bold ${t.type === 'income' ? 'text-emerald-500' : 'text-foreground'}`}>
-                        {t.type === 'income' ? '+' : '-'}{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
+                      <div className="flex items-center gap-4">
+                        <div className={`font-bold ${t.type === 'income' ? 'text-emerald-500' : 'text-foreground'}`}>
+                          {t.type === 'income' ? '+' : '-'}{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
+                        </div>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(t.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
