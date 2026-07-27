@@ -7,8 +7,8 @@ import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Dashboard — Studio Bella',
-    default: 'Dashboard — Studio Bella',
+    template: '%s | Minhas Finanças',
+    default: 'Minhas Finanças',
   },
 }
 
