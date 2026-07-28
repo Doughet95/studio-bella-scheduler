@@ -143,17 +143,7 @@ export default function InsightsPage() {
           <CardContent className="flex-1 min-h-[300px] print-chart-content">
             {dailyChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%" minHeight={300}>
-                <AreaChart data={dailyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(340, 40%, 48%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(340, 40%, 48%)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
+                <BarChart data={dailyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="formattedDate" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
@@ -162,9 +152,9 @@ export default function InsightsPage() {
                     formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                  <Area type="monotone" name="Receitas" dataKey="income" stroke="hsl(142, 76%, 36%)" fillOpacity={1} fill="url(#colorIncome)" />
-                  <Area type="monotone" name="Despesas" dataKey="expense" stroke="hsl(340, 40%, 48%)" fillOpacity={1} fill="url(#colorExpense)" />
-                </AreaChart>
+                  <Bar name="Receitas" dataKey="income" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
+                  <Bar name="Despesas" dataKey="expense" fill="hsl(340, 40%, 48%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Nenhum dado para exibir neste mês.</div>
