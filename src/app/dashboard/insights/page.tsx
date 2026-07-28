@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowDownIcon, ArrowUpIcon, Wallet, Loader2, Printer, CreditCard, Banknote, Sparkles } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, Wallet, Loader2, Printer, CreditCard, Banknote, Calendar } from 'lucide-react'
 import { Transaction } from '@/lib/mock-db'
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
 import { format, parseISO } from 'date-fns'
@@ -12,6 +12,10 @@ import { ptBR } from 'date-fns/locale'
 export default function InsightsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  })
 
   useEffect(() => {
     fetch('/api/transactions')
@@ -27,13 +31,16 @@ export default function InsightsPage() {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
   }
 
+  // Filter transactions by selected month
+  const filteredTransactions = transactions.filter(t => t.date.startsWith(selectedMonth))
+
   // Summary Metrics
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0)
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
+  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0)
   const netBalance = totalIncome - totalExpense
 
   // Daily Chart Data
-  const dailyDataMap = transactions.reduce((acc, t) => {
+  const dailyDataMap = filteredTransactions.reduce((acc, t) => {
     const date = t.date.split('T')[0]
     if (!acc[date]) acc[date] = { date, income: 0, expense: 0 }
     if (t.type === 'income') acc[date].income += t.amount
@@ -45,12 +52,12 @@ export default function InsightsPage() {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map(d => ({
       ...d,
-      formattedDate: format(parseISO(d.date), "dd 'de' MMM", { locale: ptBR })
+      formattedDate: format(parseISO(d.date), "dd/MMM", { locale: ptBR })
     }))
 
   // Category Chart Data
   const expensesByCategory = Object.entries(
-    transactions
+    filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
         acc[t.category] = (acc[t.category] || 0) + t.amount
@@ -62,21 +69,38 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex justify-between items-end print:hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Relatórios</h1>
           <p className="text-muted-foreground mt-1">Análise detalhada e extrato das suas finanças.</p>
         </div>
-        <Button onClick={() => window.print()} variant="outline" className="gap-2">
-          <Printer className="w-4 h-4" /> Imprimir Relatório
-        </Button>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-background border border-input rounded-md px-3 py-2 shadow-sm">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <input 
+              type="month" 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none focus:outline-none text-sm font-medium"
+            />
+          </div>
+          <Button onClick={() => window.print()} variant="outline" className="gap-2">
+            <Printer className="w-4 h-4" /> Imprimir
+          </Button>
+        </div>
+      </div>
+
+      <div className="hidden print:block mb-6">
+        <h2 className="text-2xl font-bold">Relatório Financeiro</h2>
+        <p className="text-muted-foreground">Período: {format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy', { locale: ptBR })}</p>
       </div>
 
       {/* Resumo */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="glass border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Balanço Líquido (Mês)</CardTitle>
+            <CardTitle className="text-sm font-medium">Balanço Líquido</CardTitle>
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -111,14 +135,14 @@ export default function InsightsPage() {
 
       {/* Gráficos */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="glass border-border/50 col-span-1 h-[400px] flex flex-col">
+        <Card className="glass border-border/50 col-span-1 flex flex-col print-chart-card">
           <CardHeader>
             <CardTitle className="text-lg">Fluxo Diário</CardTitle>
             <CardDescription>Entradas e Saídas ao longo do tempo</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0">
+          <CardContent className="flex-1 min-h-[300px] print-chart-content">
             {dailyChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                 <AreaChart data={dailyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -131,8 +155,8 @@ export default function InsightsPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="formattedDate" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+                  <XAxis dataKey="formattedDate" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
                   <RechartsTooltip 
                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
                     formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
@@ -143,19 +167,19 @@ export default function InsightsPage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Nenhum dado para exibir.</div>
+              <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Nenhum dado para exibir neste mês.</div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="glass border-border/50 col-span-1 h-[400px] flex flex-col">
+        <Card className="glass border-border/50 col-span-1 flex flex-col print-chart-card">
           <CardHeader>
             <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
             <CardDescription>Detalhamento de onde o dinheiro está indo</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0">
+          <CardContent className="flex-1 min-h-[300px] print-chart-content">
             {expensesByCategory.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                 <PieChart>
                   <Pie
                     data={expensesByCategory}
@@ -178,7 +202,7 @@ export default function InsightsPage() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Nenhuma despesa registrada.</div>
+              <div className="h-full flex items-center justify-center text-muted-foreground text-sm">Nenhuma despesa registrada neste mês.</div>
             )}
           </CardContent>
         </Card>
@@ -203,10 +227,10 @@ export default function InsightsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {transactions.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Nenhum lançamento encontrado.</td></tr>
+                {filteredTransactions.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Nenhum lançamento encontrado neste mês.</td></tr>
                 )}
-                {transactions.map(t => (
+                {filteredTransactions.map(t => (
                   <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {format(parseISO(t.date), 'dd/MM/yyyy')}
@@ -237,13 +261,14 @@ export default function InsightsPage() {
         </CardContent>
       </Card>
       
-      {/* CSS para esconder barra de navegação durante a impressão */}
+      {/* CSS para Impressão */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body, html, #__next, .flex.h-screen { 
             height: auto !important; 
             overflow: visible !important; 
             display: block !important; 
+            background: white !important;
           }
           nav, aside, .mobile-nav { display: none !important; }
           main { 
@@ -256,18 +281,18 @@ export default function InsightsPage() {
           .glass { 
             background: transparent !important; 
             border: 1px solid #ccc !important; 
+            box-shadow: none !important;
           }
-          /* Evita que gráficos quebrem no meio, mas permite que a tabela quebre */
-          .grid > .glass { break-inside: avoid; }
+          /* Garante que os gráficos tenham um tamanho mínimo na impressão */
+          .print-chart-content { 
+            min-height: 300px !important;
+            display: block !important;
+          }
+          /* Impede que o bloco do gráfico quebre no meio */
+          .print-chart-card { break-inside: avoid; }
           
-          /* Remove restrições de tamanho na tabela para que ela flua */
+          /* Remove restrições da tabela para ela fluir entre páginas */
           .print-table-container { overflow: visible !important; }
-          
-          /* Força as restrições dos gráficos para não vazar a tinta (problema conhecido do Recharts no modo de impressão) */
-          .recharts-wrapper, .recharts-surface, .recharts-responsive-container { 
-            overflow: hidden !important; 
-            max-width: 100% !important;
-          }
         }
       `}} />
     </div>
