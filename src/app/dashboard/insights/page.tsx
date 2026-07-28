@@ -262,6 +262,12 @@ export default function InsightsPage() {
           
           /* Remove restrições de tamanho na tabela para que ela flua */
           .print-table-container { overflow: visible !important; }
+          
+          /* Força as restrições dos gráficos para não vazar a tinta (problema conhecido do Recharts no modo de impressão) */
+          .recharts-wrapper, .recharts-surface, .recharts-responsive-container { 
+            overflow: hidden !important; 
+            max-width: 100% !important;
+          }
         }
       `}} />
     </div>
