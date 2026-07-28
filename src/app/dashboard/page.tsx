@@ -41,7 +41,7 @@ export default function DashboardPage() {
     transactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
-        const author = t.authorName?.split(' ')[0] || 'Desconhecido'
+        const author = ((t as any).author_name || t.authorName)?.split(' ')[0] || 'Desconhecido'
         acc[author] = (acc[author] || 0) + t.amount
         return acc
       }, {} as Record<string, number>)
