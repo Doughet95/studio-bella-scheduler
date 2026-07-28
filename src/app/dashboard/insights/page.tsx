@@ -191,7 +191,7 @@ export default function InsightsPage() {
           <CardDescription>Lista completa de todos os lançamentos que compõem este relatório.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border/50 overflow-hidden">
+          <div className="rounded-md border border-border/50 overflow-hidden print-table-container">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
                 <tr>
@@ -261,7 +261,7 @@ export default function InsightsPage() {
           .grid > .glass { break-inside: avoid; }
           
           /* Remove restrições de tamanho na tabela para que ela flua */
-          .overflow-hidden { overflow: visible !important; }
+          .print-table-container { overflow: visible !important; }
         }
       `}} />
     </div>
