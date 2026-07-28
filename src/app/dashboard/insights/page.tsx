@@ -240,9 +240,28 @@ export default function InsightsPage() {
       {/* CSS para esconder barra de navegação durante a impressão */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
+          body, html, #__next, .flex.h-screen { 
+            height: auto !important; 
+            overflow: visible !important; 
+            display: block !important; 
+          }
           nav, aside, .mobile-nav { display: none !important; }
-          main { padding: 0 !important; margin: 0 !important; width: 100% !important; }
-          .glass { background: transparent !important; border: 1px solid #ccc !important; break-inside: avoid; }
+          main { 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            width: 100% !important; 
+            overflow: visible !important;
+            height: auto !important;
+          }
+          .glass { 
+            background: transparent !important; 
+            border: 1px solid #ccc !important; 
+          }
+          /* Evita que gráficos quebrem no meio, mas permite que a tabela quebre */
+          .grid > .glass { break-inside: avoid; }
+          
+          /* Remove restrições de tamanho na tabela para que ela flua */
+          .overflow-hidden { overflow: visible !important; }
         }
       `}} />
     </div>
