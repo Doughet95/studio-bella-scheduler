@@ -20,10 +20,28 @@ export default function TransactionsPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [type, setType] = useState<'income'|'expense'>('expense')
   const [paymentMethod, setPaymentMethod] = useState('Cartão de Crédito')
+  const [cards, setCards] = useState<{id: string, name: string}[]>([])
+  const [selectedCard, setSelectedCard] = useState('')
 
   useEffect(() => {
     fetchTransactions()
+    fetchCards()
   }, [])
+
+  const fetchCards = async () => {
+    try {
+      const res = await fetch('/api/cards')
+      const data = await res.json()
+      if (data.data) {
+        setCards(data.data)
+        if (data.data.length > 0 && !selectedCard) {
+          setSelectedCard(data.data[0].name)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch cards')
+    }
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -47,7 +65,8 @@ export default function TransactionsPage() {
           amount: parseFloat(amount),
           date,
           type,
-          paymentMethod
+          paymentMethod,
+          cardName: paymentMethod === 'Cartão de Crédito' ? selectedCard : null
         })
       })
       if (!res.ok) {
@@ -141,6 +160,41 @@ export default function TransactionsPage() {
                   </div>
                 )}
 
+                {type === 'expense' && paymentMethod === 'Cartão de Crédito' && (
+                  <div className="space-y-2 border-l-2 border-primary pl-4 ml-1">
+                    <Label className="flex justify-between items-center">
+                      Qual Cartão?
+                      <Button type="button" variant="link" className="h-auto p-0 text-xs text-primary" onClick={async () => {
+                        const newName = prompt('Nome do novo cartão:')
+                        if (newName) {
+                          try {
+                            const res = await fetch('/api/cards', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ name: newName })
+                            })
+                            if (res.ok) {
+                              fetchCards()
+                              setSelectedCard(newName)
+                            }
+                          } catch (e) {}
+                        }
+                      }}>
+                        + Novo Cartão
+                      </Button>
+                    </Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={selectedCard}
+                      onChange={e => setSelectedCard(e.target.value)}
+                    >
+                      {cards.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="pt-2 text-xs text-muted-foreground flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-primary" /> 
                   O sistema classificará automaticamente seus gastos inteligentemente.
@@ -196,7 +250,7 @@ export default function TransactionsPage() {
                                     <span className="opacity-50">•</span>
                                     <span className="flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
                                       {((t as any).payment_method === 'Dinheiro' || (t as any).payment_method === 'PIX') ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
-                                      {(t as any).payment_method}
+                                      {(t as any).payment_method} {((t as any).payment_method === 'Cartão de Crédito' && (t as any).card_name) ? `(${(t as any).card_name})` : ''}
                                     </span>
                                   </>
                                 )}

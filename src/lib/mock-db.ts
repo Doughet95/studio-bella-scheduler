@@ -10,6 +10,7 @@ export interface Transaction {
   authorName?: string
   payment_method?: string
   is_paid?: boolean
+  card_name?: string
 }
 
 export interface Goal {

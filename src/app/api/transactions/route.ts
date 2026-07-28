@@ -67,7 +67,8 @@ export async function POST(req: Request) {
       necessity: autoNecessity,
       author_name: session.user.name || 'Desconhecido',
       payment_method: paymentMethod,
-      is_paid: paymentMethod === 'Cartão de Crédito' ? false : true
+      is_paid: paymentMethod === 'Cartão de Crédito' ? false : true,
+      card_name: paymentMethod === 'Cartão de Crédito' ? (body.cardName || null) : null
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

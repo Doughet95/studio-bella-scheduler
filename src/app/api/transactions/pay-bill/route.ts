@@ -14,10 +14,18 @@ export async function POST(req: Request) {
   }
 
   try {
+    const body = await req.json()
+    const { cardName } = body
+
+    if (!cardName) {
+      return NextResponse.json({ error: 'Nome do cartão é obrigatório' }, { status: 400 })
+    }
+
     const { error } = await supabase
       .from('transactions')
       .update({ is_paid: true })
       .eq('payment_method', 'Cartão de Crédito')
+      .eq('card_name', cardName)
       .eq('is_paid', false)
 
     if (error) throw error

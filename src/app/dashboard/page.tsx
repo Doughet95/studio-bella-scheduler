@@ -10,8 +10,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [cards, setCards] = useState<{id: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
-  const [payingBill, setPayingBill] = useState(false)
+  const [payingBill, setPayingBill] = useState<string | null>(null)
   const { toast } = useToast()
 
   const fetchTransactions = () => {
@@ -23,24 +24,38 @@ export default function DashboardPage() {
       })
       .catch(() => setLoading(false))
   }
+  
+  const fetchCards = () => {
+    fetch('/api/cards')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) setCards(data.data)
+      })
+      .catch(console.error)
+  }
 
   useEffect(() => {
     fetchTransactions()
+    fetchCards()
   }, [])
 
-  const handlePayBill = async () => {
-    if (!confirm('Tem certeza que deseja marcar toda a fatura do cartão como paga? O valor será descontado do seu saldo atual.')) return
+  const handlePayBill = async (cardName: string) => {
+    if (!confirm(`Tem certeza que deseja marcar toda a fatura do cartão ${cardName} como paga? O valor será descontado do seu saldo atual.`)) return
     
-    setPayingBill(true)
+    setPayingBill(cardName)
     try {
-      const res = await fetch('/api/transactions/pay-bill', { method: 'POST' })
+      const res = await fetch('/api/transactions/pay-bill', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardName })
+      })
       if (!res.ok) throw new Error('Falha ao pagar fatura')
-      toast({ title: 'Fatura Paga!', description: 'O valor foi descontado do seu saldo com sucesso.' })
+      toast({ title: 'Fatura Paga!', description: `O valor da fatura do ${cardName} foi descontado do seu saldo com sucesso.` })
       fetchTransactions()
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro ao pagar fatura' })
     } finally {
-      setPayingBill(false)
+      setPayingBill(null)
     }
   }
 
@@ -131,24 +146,32 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="glass border-border/50 border-orange-500/20 bg-orange-500/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-500">Fatura do Cartão</CardTitle>
-            <CreditCard className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingCardExpenses)}
-            </div>
-            {pendingCardExpenses > 0 ? (
-              <Button onClick={handlePayBill} disabled={payingBill} size="sm" variant="outline" className="w-full mt-3 h-7 text-xs border-orange-500/50 text-orange-500 hover:bg-orange-500 hover:text-white">
-                {payingBill ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : '💰 Pagar Fatura'}
-              </Button>
-            ) : (
-              <p className="text-xs text-orange-500/80 mt-1">Fatura zerada ou paga</p>
-            )}
-          </CardContent>
-        </Card>
+        {cards.map(card => {
+          const cardPending = transactions
+            .filter(t => t.type === 'expense' && t.is_paid === false && ((t as any).card_name === card.name))
+            .reduce((acc, curr) => acc + curr.amount, 0)
+            
+          return (
+            <Card key={card.id} className="glass border-border/50 border-orange-500/20 bg-orange-500/5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-orange-500 line-clamp-1" title={`Fatura ${card.name}`}>Fatura {card.name}</CardTitle>
+                <CreditCard className="h-4 w-4 text-orange-500 flex-shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-500">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cardPending)}
+                </div>
+                {cardPending > 0 ? (
+                  <Button onClick={() => handlePayBill(card.name)} disabled={payingBill === card.name} size="sm" variant="outline" className="w-full mt-3 h-7 text-xs border-orange-500/50 text-orange-500 hover:bg-orange-500 hover:text-white">
+                    {payingBill === card.name ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : '💰 Pagar'}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-orange-500/80 mt-1">Fatura zerada</p>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Charts Section */}
