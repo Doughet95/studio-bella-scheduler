@@ -134,7 +134,7 @@ export default function InsightsPage() {
       </div>
 
       {/* Gráficos */}
-      <div className="grid gap-6 md:grid-cols-2 print:grid-cols-1 print:block space-y-6 md:space-y-0 print:space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
         <Card className="glass border-border/50 col-span-1 flex flex-col print-chart-card">
           <CardHeader>
             <CardTitle className="text-lg">Fluxo Diário</CardTitle>
@@ -279,7 +279,7 @@ export default function InsightsPage() {
             display: block !important;
           }
           /* Impede que o bloco do gráfico quebre no meio */
-          .print-chart-card { break-inside: avoid; margin-bottom: 24px !important; }
+          .print-chart-card { break-inside: avoid; }
           
           /* Remove restrições da tabela para ela fluir entre páginas */
           .print-table-container { overflow: visible !important; }
@@ -288,9 +288,6 @@ export default function InsightsPage() {
           .recharts-wrapper, .recharts-surface, .recharts-responsive-container { 
             overflow: hidden !important; 
             max-width: 100% !important;
-          }
-          svg.recharts-surface {
-            width: 100% !important;
           }
         }
       `}} />
