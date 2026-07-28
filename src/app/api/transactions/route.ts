@@ -64,7 +64,8 @@ export async function POST(req: Request) {
       category: body.type === 'income' ? 'Renda' : (autoNecessity === 'unnecessary' ? 'Lazer/Supérfluo' : 'Essencial'),
       type: body.type,
       necessity: autoNecessity,
-      author_name: session.user.name || 'Desconhecido'
+      author_name: session.user.name || 'Desconhecido',
+      payment_method: body.type === 'expense' ? (body.paymentMethod || null) : null
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

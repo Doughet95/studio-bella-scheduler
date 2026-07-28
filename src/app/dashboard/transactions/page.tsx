@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles, Trash2 } from 'lucide-react'
+import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles, Trash2, CreditCard, Banknote } from 'lucide-react'
 import { Transaction } from '@/lib/mock-db'
 
 export default function TransactionsPage() {
@@ -19,6 +19,7 @@ export default function TransactionsPage() {
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [type, setType] = useState<'income'|'expense'>('expense')
+  const [paymentMethod, setPaymentMethod] = useState('Cartão de Crédito')
 
   useEffect(() => {
     fetchTransactions()
@@ -45,7 +46,8 @@ export default function TransactionsPage() {
           description: desc,
           amount: parseFloat(amount),
           date,
-          type
+          type,
+          paymentMethod
         })
       })
       if (!res.ok) {
@@ -123,6 +125,22 @@ export default function TransactionsPage() {
                   <Input required type="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
 
+                {type === 'expense' && (
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={paymentMethod}
+                      onChange={e => setPaymentMethod(e.target.value)}
+                    >
+                      <option value="Cartão de Crédito">Cartão de Crédito</option>
+                      <option value="Cartão de Débito">Cartão de Débito</option>
+                      <option value="PIX">PIX</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                    </select>
+                  </div>
+                )}
+
                 <div className="pt-2 text-xs text-muted-foreground flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-primary" /> 
                   O sistema classificará automaticamente seus gastos inteligentemente.
@@ -173,6 +191,15 @@ export default function TransactionsPage() {
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-semibold ${t.necessity === 'unnecessary' ? 'bg-secondary/20 text-secondary' : 'bg-primary/10 text-primary'}`}>
                                   {t.necessity === 'unnecessary' ? 'Evitável' : t.necessity === 'essential' ? 'Essencial' : 'Investimento'}
                                 </span>
+                                {((t as any).payment_method) && (
+                                  <>
+                                    <span className="opacity-50">•</span>
+                                    <span className="flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
+                                      {((t as any).payment_method === 'Dinheiro' || (t as any).payment_method === 'PIX') ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                                      {(t as any).payment_method}
+                                    </span>
+                                  </>
+                                )}
                               </>
                             )}
                           </div>
