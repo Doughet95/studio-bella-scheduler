@@ -2,15 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ArrowDownIcon, ArrowUpIcon, Wallet, PiggyBank, Target, Loader2, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/use-toast'
+import { ArrowDownIcon, ArrowUpIcon, Wallet, PiggyBank, Target, Loader2, Users, CreditCard, Banknote } from 'lucide-react'
 import { Transaction } from '@/lib/mock-db'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [payingBill, setPayingBill] = useState(false)
+  const { toast } = useToast()
 
-  useEffect(() => {
+  const fetchTransactions = () => {
     fetch('/api/transactions')
       .then(res => res.json())
       .then(data => {
@@ -18,11 +22,37 @@ export default function DashboardPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchTransactions()
   }, [])
 
+  const handlePayBill = async () => {
+    if (!confirm('Tem certeza que deseja marcar toda a fatura do cartão como paga? O valor será descontado do seu saldo atual.')) return
+    
+    setPayingBill(true)
+    try {
+      const res = await fetch('/api/transactions/pay-bill', { method: 'POST' })
+      if (!res.ok) throw new Error('Falha ao pagar fatura')
+      toast({ title: 'Fatura Paga!', description: 'O valor foi descontado do seu saldo com sucesso.' })
+      fetchTransactions()
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao pagar fatura' })
+    } finally {
+      setPayingBill(false)
+    }
+  }
+
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0)
-  const balance = totalIncome - totalExpense
+  
+  // Expenses that are marked as paid (Dinheiro/PIX/Débito)
+  const cashExpenses = transactions.filter(t => t.type === 'expense' && t.is_paid !== false).reduce((acc, curr) => acc + curr.amount, 0)
+  
+  // Expenses that are pending (Cartão de Crédito)
+  const pendingCardExpenses = transactions.filter(t => t.type === 'expense' && t.is_paid === false).reduce((acc, curr) => acc + curr.amount, 0)
+
+  const balance = totalIncome - cashExpenses
   const unnecessaryExpenses = transactions
     .filter(t => t.type === 'expense' && t.necessity === 'unnecessary')
     .reduce((acc, curr) => acc + curr.amount, 0)
@@ -90,27 +120,33 @@ export default function DashboardPage() {
 
         <Card className="glass border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Despesas</CardTitle>
-            <ArrowDownIcon className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-sm font-medium">Despesas à Vista</CardTitle>
+            <Banknote className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalExpense)}
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cashExpenses)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Total gasto no mês</p>
+            <p className="text-xs text-muted-foreground mt-1">Dinheiro, PIX e Débito</p>
           </CardContent>
         </Card>
 
-        <Card className="glass border-border/50 bg-secondary/5 border-secondary/20">
+        <Card className="glass border-border/50 border-orange-500/20 bg-orange-500/5">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-secondary">Gastos Desnecessários</CardTitle>
-            <Target className="h-4 w-4 text-secondary" />
+            <CardTitle className="text-sm font-medium text-orange-500">Fatura do Cartão</CardTitle>
+            <CreditCard className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unnecessaryExpenses)}
+            <div className="text-2xl font-bold text-orange-500">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingCardExpenses)}
             </div>
-            <p className="text-xs text-secondary/80 mt-1">Potencial de economia!</p>
+            {pendingCardExpenses > 0 ? (
+              <Button onClick={handlePayBill} disabled={payingBill} size="sm" variant="outline" className="w-full mt-3 h-7 text-xs border-orange-500/50 text-orange-500 hover:bg-orange-500 hover:text-white">
+                {payingBill ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : '💰 Pagar Fatura'}
+              </Button>
+            ) : (
+              <p className="text-xs text-orange-500/80 mt-1">Fatura zerada ou paga</p>
+            )}
           </CardContent>
         </Card>
       </div>

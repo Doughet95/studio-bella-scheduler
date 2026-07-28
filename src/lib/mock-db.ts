@@ -8,6 +8,8 @@ export interface Transaction {
   necessity: 'essential' | 'unnecessary' | 'investment' | 'none'
   created_at: string
   authorName?: string
+  payment_method?: string
+  is_paid?: boolean
 }
 
 export interface Goal {

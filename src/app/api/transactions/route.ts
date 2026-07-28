@@ -57,6 +57,7 @@ export async function POST(req: Request) {
       }
     }
     
+    const paymentMethod = body.type === 'expense' ? (body.paymentMethod || null) : null
     const newTransaction = {
       date: body.date,
       amount: Number(body.amount),
@@ -65,7 +66,8 @@ export async function POST(req: Request) {
       type: body.type,
       necessity: autoNecessity,
       author_name: session.user.name || 'Desconhecido',
-      payment_method: body.type === 'expense' ? (body.paymentMethod || null) : null
+      payment_method: paymentMethod,
+      is_paid: paymentMethod === 'Cartão de Crédito' ? false : true
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
