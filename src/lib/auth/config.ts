@@ -1,9 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
-import { SignJWT } from 'jose'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { loginSchema } from '@/lib/validations/auth'
 import bcrypt from 'bcryptjs'
 
 // Augment next-auth types
@@ -36,7 +34,7 @@ declare module 'next-auth/jwt' {
   }
 }
 
-async function generateSupabaseToken(userId: string, email: string): Promise<string> {
+async function generateSupabaseToken(): Promise<string> {
   return 'mock-supabase-token-for-demo'
 }
 
@@ -98,7 +96,7 @@ export const authOptions: NextAuthOptions = {
         token.userId = user.id
         token.role = user.role ?? 'client'
         token.familyId = user.familyId
-        token.supabaseToken = await generateSupabaseToken(user.id, user.email!)
+        token.supabaseToken = await generateSupabaseToken()
       }
 
       // Atualização de sessão

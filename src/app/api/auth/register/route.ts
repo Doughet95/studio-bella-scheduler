@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       if (familyError) throw familyError
 
       // Create User
-      const { data: user, error: userError } = await supabase
+      const { error: userError } = await supabase
         .from('app_users')
         .insert([{
           name,
@@ -99,8 +99,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ error: 'Tipo de conta inválido' }, { status: 400 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Register error:', error)
-    return NextResponse.json({ error: error.message || 'Erro ao criar conta' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao criar conta' }, { status: 500 })
   }
 }

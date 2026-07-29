@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     if (error) throw error
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Erro ao pagar fatura' }, { status: 400 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao pagar fatura' }, { status: 400 })
   }
 }

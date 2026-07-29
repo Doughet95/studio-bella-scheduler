@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     if (error) throw error
 
     return NextResponse.json({ data })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Erro ao criar transação' }, { status: 400 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao criar transação' }, { status: 400 })
   }
 }

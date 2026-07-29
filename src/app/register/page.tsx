@@ -47,8 +47,8 @@ export default function RegisterPage() {
 
       toast({ title: 'Sucesso!', description: 'Sua conta foi criada. Faça o login para continuar.' })
       router.push('/login')
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro no cadastro', description: error.message })
+    } catch (error: unknown) {
+      toast({ variant: 'destructive', title: 'Erro no cadastro', description: error instanceof Error ? error.message : 'Erro desconhecido' })
     } finally {
       setLoading(false)
     }
