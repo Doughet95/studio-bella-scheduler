@@ -249,12 +249,23 @@ export default function TransactionsPage() {
             <CardContent>
               {loading ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-              ) : transactions.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">Nenhuma transação registrada.</div>
               ) : (
-                <div className="space-y-4">
-                  {transactions.map(t => (
-                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors">
+                (() => {
+                  const currentMonthYear = new Date().toISOString().substring(0, 7)
+                  const visibleTransactions = transactions.filter(t => {
+                    const isCurrentMonth = t.date.startsWith(currentMonthYear)
+                    const isUnpaidCreditCard = t.is_paid === false
+                    return isCurrentMonth || isUnpaidCreditCard
+                  })
+
+                  if (visibleTransactions.length === 0) {
+                    return <div className="text-center py-10 text-muted-foreground">Nenhuma transação registrada neste mês.</div>
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {visibleTransactions.map(t => (
+                        <div key={t.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
                           {t.type === 'income' ? <ArrowUpIcon className="w-5 h-5" /> : <ArrowDownIcon className="w-5 h-5" />}
@@ -306,6 +317,8 @@ export default function TransactionsPage() {
                     </div>
                   ))}
                 </div>
+                )
+              })()
               )}
             </CardContent>
           </Card>
