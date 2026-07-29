@@ -25,6 +25,15 @@ export default function TransactionsPage() {
   const [selectedCard, setSelectedCard] = useState('')
   const [goals, setGoals] = useState<Goal[]>([])
   const [selectedGoal, setSelectedGoal] = useState('')
+  const [category, setCategory] = useState('')
+
+  const EXPENSE_CATEGORIES = [
+    'Mercado', 'Farmácia', 'Padaria', 'Alimentação (Restaurante/Fast Food/Lanchonete)', 
+    'Combustível', 'Transporte', 'Saúde', 'Moradia', 'Contas da Casa', 'Educação', 
+    'Pets', 'Roupas', 'Beleza', 'Perfumaria', 'Casa', 'Compras Online', 'Lazer', 
+    'Cinema', 'Viagens', 'Assinaturas', 'Presentes', 'Investimentos', 
+    'Cartão de Crédito', 'Impostos/Taxas', 'Outros'
+  ]
 
   useEffect(() => {
     fetchTransactions()
@@ -85,7 +94,8 @@ export default function TransactionsPage() {
           type,
           paymentMethod,
           cardName: paymentMethod === 'Cartão de Crédito' ? selectedCard : null,
-          goalId: type === 'reserve' ? selectedGoal : null
+          goalId: type === 'reserve' ? selectedGoal : null,
+          category: type === 'expense' ? category : null
         })
       })
       if (!res.ok) {
@@ -109,6 +119,7 @@ export default function TransactionsPage() {
     setAmount(t.amount.toString())
     setDate(t.date.split('T')[0])
     setType(t.type)
+    if (t.category) setCategory(t.category)
     if (t.payment_method) setPaymentMethod(t.payment_method)
     if ((t as any).card_name) setSelectedCard((t as any).card_name)
     if (t.goal_id) setSelectedGoal(t.goal_id)
@@ -121,6 +132,7 @@ export default function TransactionsPage() {
     setAmount('')
     setDate(new Date().toISOString().split('T')[0])
     setType('expense')
+    setCategory('')
     setPaymentMethod('Cartão de Crédito')
   }
 
@@ -176,6 +188,23 @@ export default function TransactionsPage() {
                   <Label>Descrição</Label>
                   <Input required value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ex: Supermercado" />
                 </div>
+
+                {type === 'expense' && (
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={category}
+                      onChange={e => setCategory(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>Selecione uma categoria</option>
+                      {EXPENSE_CATEGORIES.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Valor (R$)</Label>

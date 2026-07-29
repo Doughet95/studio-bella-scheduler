@@ -38,23 +38,30 @@ export async function POST(req: Request) {
     const body = await req.json()
     
     let autoNecessity: 'essential' | 'unnecessary' | 'investment' | 'none' = 'essential'
+    let finalCategory = 'Essencial'
     
     if (body.type === 'income') {
       autoNecessity = 'none'
+      finalCategory = 'Renda'
+    } else if (body.type === 'reserve') {
+      autoNecessity = 'investment'
+      finalCategory = 'Reserva'
     } else {
-      const desc = body.description.toLowerCase()
-      const unnecessaryKeywords = [
-        'ifood', 'uber', '99', 'shopee', 'shein', 'aliexpress', 
-        'netflix', 'spotify', 'amazon prime', 'cinema', 'ingresso', 
-        'bar', 'cerveja', 'lanche', 'pizza', 'mcdonalds', 'bk', 'burger',
-        'sorvete', 'doce', 'shopping', 'roupa', 'sapato', 'padaria', 'lanchonete', 'bobs'
+      finalCategory = body.category || 'Outros'
+      
+      const essentialCategories = [
+        'Mercado', 'Farmácia', 'Padaria', 'Combustível', 'Transporte', 
+        'Saúde', 'Moradia', 'Contas da Casa', 'Educação', 'Pets', 
+        'Casa', 'Cartão de Crédito', 'Impostos/Taxas'
       ]
-      const investmentKeywords = ['curso', 'livro', 'treinamento', 'poupança', 'tesouro', 'ações']
-
-      if (unnecessaryKeywords.some(keyword => desc.includes(keyword))) {
-        autoNecessity = 'unnecessary'
-      } else if (investmentKeywords.some(keyword => desc.includes(keyword))) {
+      const investmentCategories = ['Investimentos']
+      
+      if (essentialCategories.includes(finalCategory)) {
+        autoNecessity = 'essential'
+      } else if (investmentCategories.includes(finalCategory)) {
         autoNecessity = 'investment'
+      } else {
+        autoNecessity = 'unnecessary'
       }
     }
     
@@ -63,7 +70,7 @@ export async function POST(req: Request) {
       date: body.date,
       amount: Number(body.amount),
       description: body.description,
-      category: body.type === 'income' ? 'Renda' : (autoNecessity === 'unnecessary' ? 'Lazer/Supérfluo' : 'Essencial'),
+      category: finalCategory,
       type: body.type,
       necessity: autoNecessity,
       author_name: session.user.name || 'Desconhecido',
