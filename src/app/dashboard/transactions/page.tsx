@@ -13,6 +13,7 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // Form State
   const [desc, setDesc] = useState('')
@@ -57,8 +58,11 @@ export default function TransactionsPage() {
     e.preventDefault()
     setAdding(true)
     try {
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
+      const url = editingId ? `/api/transactions/${editingId}` : '/api/transactions'
+      const method = editingId ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: desc,
@@ -71,17 +75,37 @@ export default function TransactionsPage() {
       })
       if (!res.ok) {
         const errorData = await res.json()
-        throw new Error(errorData.error || 'Falha ao adicionar')
+        throw new Error(errorData.error || 'Falha ao salvar')
       }
       
-      toast({ title: 'Lançamento adicionado com sucesso!' })
+      toast({ title: editingId ? 'Lançamento atualizado!' : 'Lançamento adicionado!' })
       fetchTransactions() // Refresh list
-      setDesc(''); setAmount('')
+      cancelEdit()
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao adicionar', description: error.message })
+      toast({ variant: 'destructive', title: 'Erro ao salvar', description: error.message })
     } finally {
       setAdding(false)
     }
+  }
+
+  const handleEditClick = (t: Transaction) => {
+    setEditingId(t.id)
+    setDesc(t.description)
+    setAmount(t.amount.toString())
+    setDate(t.date.split('T')[0])
+    setType(t.type)
+    if (t.payment_method) setPaymentMethod(t.payment_method)
+    if ((t as any).card_name) setSelectedCard((t as any).card_name)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setDesc('')
+    setAmount('')
+    setDate(new Date().toISOString().split('T')[0])
+    setType('expense')
+    setPaymentMethod('Cartão de Crédito')
   }
 
   const handleDelete = async (id: string) => {
@@ -113,7 +137,7 @@ export default function TransactionsPage() {
         <div className="lg:col-span-1">
           <Card className="glass border-border/50">
             <CardHeader>
-              <CardTitle>Novo Lançamento</CardTitle>
+              <CardTitle>{editingId ? 'Editar Lançamento' : 'Novo Lançamento'}</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAdd} className="space-y-4">
@@ -200,10 +224,17 @@ export default function TransactionsPage() {
                   O sistema classificará automaticamente seus gastos inteligentemente.
                 </div>
 
-                <Button type="submit" disabled={adding} className="w-full gap-2 mt-2">
-                  {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Adicionar
-                </Button>
+                <div className="flex gap-2 mt-2">
+                  <Button type="submit" disabled={adding} className="w-full gap-2">
+                    {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingId ? null : <Plus className="w-4 h-4" />)}
+                    {editingId ? 'Salvar Alterações' : 'Adicionar'}
+                  </Button>
+                  {editingId && (
+                    <Button type="button" variant="outline" onClick={cancelEdit} disabled={adding}>
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -259,13 +290,18 @@ export default function TransactionsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
                         <div className={`font-bold ${t.type === 'income' ? 'text-emerald-500' : 'text-foreground'}`}>
                           {t.type === 'income' ? '+' : '-'}{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
                         </div>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(t.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex">
+                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleEditClick(t)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(t.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
