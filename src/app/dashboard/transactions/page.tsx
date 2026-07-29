@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles, Trash2, CreditCard, Banknote, Target } from 'lucide-react'
+import { Loader2, Plus, ArrowUpIcon, ArrowDownIcon, Sparkles, Trash2, CreditCard, Banknote, Target, FileText } from 'lucide-react'
 import { Transaction, Goal } from '@/lib/mock-db'
 
 export default function TransactionsPage() {
@@ -228,6 +228,7 @@ export default function TransactionsPage() {
                       <option value="Cartão de Débito">Cartão de Débito</option>
                       <option value="PIX">PIX</option>
                       <option value="Dinheiro">Dinheiro</option>
+                      <option value="Crediário">Crediário (Conta Fiado)</option>
                     </select>
                   </div>
                 )}
@@ -355,10 +356,10 @@ export default function TransactionsPage() {
                                 {((t as any).payment_method) && (
                                   <>
                                     <span className="opacity-50">•</span>
-                                    <span className="flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
-                                      {((t as any).payment_method === 'Dinheiro' || (t as any).payment_method === 'PIX') ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
-                                      {(t as any).payment_method} {((t as any).payment_method === 'Cartão de Crédito' && (t as any).card_name) ? `(${(t as any).card_name})` : ''}
-                                    </span>
+                                      <span className="flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
+                                        {((t as any).payment_method === 'Dinheiro' || (t as any).payment_method === 'PIX') ? <Banknote className="w-3 h-3" /> : (t as any).payment_method === 'Crediário' ? <FileText className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                                        {(t as any).payment_method} {((t as any).payment_method === 'Cartão de Crédito' && (t as any).card_name) ? `(${(t as any).card_name})` : ''}
+                                      </span>
                                   </>
                                 )}
                               </>

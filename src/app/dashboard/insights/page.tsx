@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowDownIcon, ArrowUpIcon, Wallet, Loader2, Printer, CreditCard, Banknote, Calendar } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, Wallet, Loader2, Printer, CreditCard, Banknote, Calendar, FileText } from 'lucide-react'
 import { Transaction } from '@/lib/mock-db'
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
 import { format, parseISO } from 'date-fns'
@@ -236,7 +236,7 @@ export default function InsightsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
-                        {t.payment_method === 'Dinheiro' || t.payment_method === 'PIX' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                        {t.payment_method === 'Dinheiro' || t.payment_method === 'PIX' ? <Banknote className="w-3 h-3" /> : t.payment_method === 'Crediário' ? <FileText className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
                         {t.payment_method} {t.payment_method === 'Cartão de Crédito' && (t as any).card_name ? `(${(t as any).card_name})` : ''}
                       </span>
                     </td>
