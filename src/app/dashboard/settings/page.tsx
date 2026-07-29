@@ -1,6 +1,7 @@
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
+import { LogoutButton } from '@/components/layout/logout-button'
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
@@ -30,6 +31,11 @@ export default async function SettingsPage() {
               <p className="text-sm text-muted-foreground">{session?.user?.email}</p>
             </div>
           </div>
+        </div>
+        
+        {/* Logout Button para Mobile */}
+        <div className="lg:hidden">
+          <LogoutButton />
         </div>
       </div>
     </div>
