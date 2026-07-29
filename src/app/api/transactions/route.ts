@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         'ifood', 'uber', '99', 'shopee', 'shein', 'aliexpress', 
         'netflix', 'spotify', 'amazon prime', 'cinema', 'ingresso', 
         'bar', 'cerveja', 'lanche', 'pizza', 'mcdonalds', 'bk', 'burger',
-        'sorvete', 'doce', 'shopping', 'roupa', 'sapato'
+        'sorvete', 'doce', 'shopping', 'roupa', 'sapato', 'padaria', 'lanchonete', 'bobs'
       ]
       const investmentKeywords = ['curso', 'livro', 'treinamento', 'poupança', 'tesouro', 'ações']
 

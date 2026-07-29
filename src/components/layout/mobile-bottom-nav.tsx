@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Wallet, Target, Settings } from 'lucide-react'
+import { LayoutDashboard, Wallet, Target, Settings, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const mobileNav = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
   { href: '/dashboard/transactions', icon: Wallet, label: 'Lançamentos' },
+  { href: '/dashboard/insights', icon: PieChart, label: 'Relatórios' },
   { href: '/dashboard/goals', icon: Target, label: 'Metas' },
   { href: '/dashboard/settings', icon: Settings, label: 'Ajustes' },
 ]

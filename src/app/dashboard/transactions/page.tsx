@@ -229,8 +229,8 @@ export default function TransactionsPage() {
                           {t.type === 'income' ? <ArrowUpIcon className="w-5 h-5" /> : <ArrowDownIcon className="w-5 h-5" />}
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{t.description}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <p className="font-medium text-foreground break-words">{t.description}</p>
+                          <div className="flex flex-wrap items-center gap-y-1 gap-x-2 text-[10px] sm:text-xs text-muted-foreground mt-1">
                             <span>{new Date(t.date).toLocaleDateString('pt-BR')}</span>
                             <span className="opacity-50">•</span>
                             <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-foreground/80">

@@ -205,7 +205,7 @@ export default function InsightsPage() {
           <CardDescription>Lista completa de todos os lançamentos que compõem este relatório.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border/50 overflow-hidden print-table-container">
+          <div className="rounded-md border border-border/50 overflow-x-auto print-table-container">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
                 <tr>
