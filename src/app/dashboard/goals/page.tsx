@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/components/ui/use-toast'
-import { Loader2, Plus, Target, PiggyBank } from 'lucide-react'
+import { Loader2, Plus, Target, PiggyBank, Trash2 } from 'lucide-react'
 import { Goal } from '@/lib/mock-db'
 
 export default function GoalsPage() {
@@ -54,6 +54,19 @@ export default function GoalsPage() {
       toast({ variant: 'destructive', title: 'Falha ao criar meta' })
     } finally {
       setAdding(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja apagar esta meta?')) return
+
+    try {
+      const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Erro')
+      toast({ title: 'Meta apagada!' })
+      fetchGoals()
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao apagar meta' })
     }
   }
 
@@ -118,8 +131,16 @@ export default function GoalsPage() {
                 
                 return (
                   <Card key={goal.id} className="glass border-border/50 hover:border-primary/50 transition-colors">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex justify-between items-start">
+                    <CardHeader className="pb-3 relative">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute right-4 top-4 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
+                        onClick={() => handleDelete(goal.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <CardTitle className="text-lg flex justify-between items-start pt-1 pr-10">
                         <span className="truncate pr-2">{goal.name}</span>
                         <PiggyBank className="w-5 h-5 text-emerald-500 shrink-0" />
                       </CardTitle>

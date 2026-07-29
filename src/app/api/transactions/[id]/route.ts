@@ -73,7 +73,8 @@ export async function PUT(
       type: body.type,
       necessity: autoNecessity,
       payment_method: paymentMethod,
-      card_name: paymentMethod === 'Cartão de Crédito' ? (body.cardName || null) : null
+      card_name: paymentMethod === 'Cartão de Crédito' ? (body.cardName || null) : null,
+      goal_id: body.type === 'reserve' ? (body.goalId || null) : null
     }
 
     const { data, error } = await supabase

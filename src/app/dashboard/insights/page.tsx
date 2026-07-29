@@ -36,7 +36,7 @@ export default function InsightsPage() {
 
   // Summary Metrics
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
-  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0)
+  const totalExpense = filteredTransactions.filter(t => t.type === 'expense' || t.type === 'reserve').reduce((acc, curr) => acc + curr.amount, 0)
   const netBalance = totalIncome - totalExpense
 
   // Daily Chart Data
@@ -240,7 +240,7 @@ export default function InsightsPage() {
                         {t.payment_method} {t.payment_method === 'Cartão de Crédito' && (t as any).card_name ? `(${(t as any).card_name})` : ''}
                       </span>
                     </td>
-                    <td className={`px-4 py-3 text-right font-medium whitespace-nowrap ${t.type === 'income' ? 'text-emerald-500' : 'text-foreground'}`}>
+                    <td className={`px-4 py-3 text-right font-medium whitespace-nowrap ${t.type === 'income' ? 'text-emerald-500' : t.type === 'reserve' ? 'text-blue-500' : 'text-foreground'}`}>
                       {t.type === 'income' ? '+' : '-'} {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
                     </td>
                   </tr>

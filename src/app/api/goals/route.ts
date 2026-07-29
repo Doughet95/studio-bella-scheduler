@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ data: [] })
   }
 
-  const { data, error } = await supabase
+  const { data: goals, error } = await supabase
     .from('goals')
     .select('*')
     .order('created_at', { ascending: true })
@@ -22,7 +22,23 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ data })
+  // Fetch all reserve transactions to calculate current_amount dynamically
+  const { data: reserveTransactions } = await supabase
+    .from('transactions')
+    .select('goal_id, amount')
+    .eq('type', 'reserve')
+
+  const enrichedGoals = (goals || []).map(goal => {
+    const reservesForGoal = (reserveTransactions || []).filter(t => t.goal_id === goal.id)
+    const sumOfReserves = reservesForGoal.reduce((acc, curr) => acc + curr.amount, 0)
+    // The current_amount in DB acts as an initial baseline (if any)
+    return {
+      ...goal,
+      current_amount: (goal.current_amount || 0) + sumOfReserves
+    }
+  })
+
+  return NextResponse.json({ data: enrichedGoals })
 }
 
 export async function POST(req: Request) {

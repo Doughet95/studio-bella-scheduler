@@ -4,13 +4,14 @@ export interface Transaction {
   amount: number
   description: string
   category: string
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'reserve'
   necessity: 'essential' | 'unnecessary' | 'investment' | 'none'
   created_at: string
   authorName?: string
   payment_method?: string
   is_paid?: boolean
   card_name?: string
+  goal_id?: string
 }
 
 export interface Goal {

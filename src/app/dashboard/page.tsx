@@ -64,10 +64,13 @@ export default function DashboardPage() {
   // Expenses that are marked as paid (Dinheiro/PIX/Débito)
   const cashExpenses = transactions.filter(t => t.type === 'expense' && t.is_paid !== false).reduce((acc, curr) => acc + curr.amount, 0)
   
+  // Reserves (money moved to goals)
+  const totalReserves = transactions.filter(t => t.type === 'reserve').reduce((acc, curr) => acc + curr.amount, 0)
+  
   // Expenses that are pending (Cartão de Crédito)
   const pendingCardExpenses = transactions.filter(t => t.type === 'expense' && t.is_paid === false).reduce((acc, curr) => acc + curr.amount, 0)
 
-  const balance = totalIncome - cashExpenses
+  const balance = totalIncome - cashExpenses - totalReserves
   const unnecessaryExpenses = transactions
     .filter(t => t.type === 'expense' && t.necessity === 'unnecessary')
     .reduce((acc, curr) => acc + curr.amount, 0)
