@@ -39,7 +39,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
           </div>
           <div>
             <p className="font-display font-bold text-sm text-gradient leading-tight">{user?.name || 'Minhas Finanças'}</p>
-            <p className="text-[10px] text-muted-foreground capitalize">Conta Conjunta</p>
+            <p className="text-[10px] text-muted-foreground capitalize">Controle Financeiro</p>
           </div>
         </Link>
       </div>

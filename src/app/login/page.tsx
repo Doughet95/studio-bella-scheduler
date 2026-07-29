@@ -60,7 +60,7 @@ export default function LoginPage() {
             <Sparkles className="w-7 h-7 text-white" />
           </div>
           <h1 className="font-display text-2xl font-bold text-gradient">Minhas Finanças</h1>
-          <p className="text-muted-foreground text-sm mt-1">Conta Conjunta</p>
+          <p className="text-muted-foreground text-sm mt-1">Gestão Financeira Inteligente</p>
         </div>
 
         {/* Form */}
