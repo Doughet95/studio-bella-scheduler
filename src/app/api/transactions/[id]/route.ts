@@ -21,6 +21,7 @@ export async function DELETE(
       .from('transactions')
       .delete()
       .eq('id', params.id)
+      .eq('family_id', session.user.familyId)
 
     if (error) throw error
 
@@ -81,6 +82,7 @@ export async function PUT(
       .from('transactions')
       .update(updateData)
       .eq('id', params.id)
+      .eq('family_id', session.user.familyId)
       .select()
       .single()
 

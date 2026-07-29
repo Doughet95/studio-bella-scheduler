@@ -17,6 +17,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
+    .eq('family_id', session.user.familyId)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
 
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
       payment_method: paymentMethod,
       is_paid: paymentMethod === 'Cartão de Crédito' ? false : true,
       card_name: paymentMethod === 'Cartão de Crédito' ? (body.cardName || null) : null,
-      goal_id: body.type === 'reserve' ? (body.goalId || null) : null
+      goal_id: body.type === 'reserve' ? (body.goalId || null) : null,
+      family_id: session.user.familyId
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

@@ -16,16 +16,17 @@ export async function GET() {
   const { data: goals, error } = await supabase
     .from('goals')
     .select('*')
+    .eq('family_id', session.user.familyId)
     .order('created_at', { ascending: true })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Fetch all reserve transactions to calculate current_amount dynamically
   const { data: reserveTransactions } = await supabase
     .from('transactions')
     .select('goal_id, amount')
+    .eq('family_id', session.user.familyId)
     .eq('type', 'reserve')
 
   const enrichedGoals = (goals || []).map(goal => {
@@ -53,7 +54,8 @@ export async function POST(req: Request) {
     const newGoal = {
       name: body.name,
       target_amount: body.target_amount ? Number(body.target_amount) : null,
-      current_amount: body.current_amount ? Number(body.current_amount) : 0
+      current_amount: body.current_amount ? Number(body.current_amount) : 0,
+      family_id: session.user.familyId
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

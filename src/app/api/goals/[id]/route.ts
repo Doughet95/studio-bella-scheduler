@@ -21,6 +21,7 @@ export async function DELETE(
       .from('goals')
       .delete()
       .eq('id', params.id)
+      .eq('family_id', session.user.familyId)
 
     if (error) throw error
 

@@ -4,6 +4,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import { SignJWT } from 'jose'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { loginSchema } from '@/lib/validations/auth'
+import bcrypt from 'bcryptjs'
 
 // Augment next-auth types
 declare module 'next-auth' {
@@ -15,12 +16,14 @@ declare module 'next-auth' {
       name: string
       role: string
       image?: string | null
+      familyId: string
     }
   }
 
   interface User {
     id: string
     role: string
+    familyId: string
   }
 }
 
@@ -29,6 +32,7 @@ declare module 'next-auth/jwt' {
     supabaseToken: string
     role: string
     userId: string
+    familyId: string
   }
 }
 
@@ -54,28 +58,28 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email) return null
         
         const email = credentials.email.toLowerCase()
-        
-        if (email === 'douglas.smart20@gmail.com') {
-          return {
-            id: 'user-douglas',
-            email: 'douglas.smart20@gmail.com',
-            name: 'Douglas Teixeira',
-            image: null,
-            role: 'owner',
-          }
-        }
-        
-        if (email === 'doughet36@gmail.com') {
-          return {
-            id: 'user-tairine',
-            email: 'doughet36@gmail.com',
-            name: 'Tairine Rodrigues',
-            image: null,
-            role: 'owner',
-          }
-        }
+        const supabase = createAdminClient()
 
-        return null
+        const { data: user, error } = await supabase
+          .from('app_users')
+          .select('*')
+          .eq('email', email)
+          .single()
+
+        if (error || !user) return null
+
+        const passwordMatch = await bcrypt.compare(credentials.password, user.password_hash)
+        
+        if (!passwordMatch) return null
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: null,
+          role: 'owner',
+          familyId: user.family_id
+        }
       },
     }),
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -93,6 +97,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = user.id
         token.role = user.role ?? 'client'
+        token.familyId = user.familyId
         token.supabaseToken = await generateSupabaseToken(user.id, user.email!)
       }
 
@@ -107,6 +112,7 @@ export const authOptions: NextAuthOptions = {
       session.supabaseToken = token.supabaseToken
       session.user.id = token.userId
       session.user.role = token.role
+      session.user.familyId = token.familyId
       return session
     },
   },

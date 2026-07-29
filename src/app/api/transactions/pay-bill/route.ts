@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       .eq('payment_method', 'Cartão de Crédito')
       .eq('card_name', cardName)
       .eq('is_paid', false)
+      .eq('family_id', session.user.familyId)
 
     if (error) throw error
 

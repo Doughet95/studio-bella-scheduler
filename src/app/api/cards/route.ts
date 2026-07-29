@@ -17,6 +17,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('credit_cards')
       .select('*')
+      .eq('family_id', session.user.familyId)
       .order('created_at', { ascending: true })
 
     if (error) throw error
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
 
     const { data, error } = await supabase
       .from('credit_cards')
-      .insert([{ name: body.name }])
+      .insert([{ name: body.name, family_id: session.user.familyId }])
       .select()
       .single()
 
