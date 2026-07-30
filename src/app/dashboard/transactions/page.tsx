@@ -254,35 +254,24 @@ export default function TransactionsPage() {
                   <div className="space-y-2 border-l-2 border-primary pl-4 ml-1">
                     <Label className="flex justify-between items-center">
                       Qual Loja?
-                      <Button type="button" variant="link" className="h-auto p-0 text-xs text-primary" onClick={async () => {
-                        const newName = prompt('Nome da nova loja (Crediário):')
-                        if (newName) {
-                          try {
-                            const res = await fetch('/api/cards', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ name: newName })
-                            })
-                            if (res.ok) {
-                              fetchCards()
-                              setSelectedCard(newName)
-                            }
-                          } catch (e) {}
-                        }
-                      }}>
-                        + Nova Loja
-                      </Button>
                     </Label>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <Input
+                      list="store-names"
+                      className="flex h-10 w-full"
                       value={selectedCard}
                       onChange={e => setSelectedCard(e.target.value)}
-                    >
-                      <option value="" disabled>Selecione uma loja</option>
-                      {cards.map(c => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
+                      placeholder="Digite o nome da loja..."
+                      required
+                    />
+                    <datalist id="store-names">
+                      {Array.from(new Set(
+                        transactions
+                          .filter(t => t.payment_method === 'Crediário' && (t as any).card_name)
+                          .map(t => (t as any).card_name as string)
+                      )).map(storeName => (
+                        <option key={storeName} value={storeName} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                 )}
 

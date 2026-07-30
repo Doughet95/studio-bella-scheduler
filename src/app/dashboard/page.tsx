@@ -220,24 +220,28 @@ export default function DashboardPage() {
         })}
 
         {/* Crediário Cards */}
-        {cards.map(card => {
+        {Array.from(new Set(
+          transactions
+            .filter(t => t.payment_method === 'Crediário' && (t as any).card_name)
+            .map(t => (t as any).card_name as string)
+        )).map(storeName => {
           const crediarioPending = transactions
-            .filter(t => t.type === 'expense' && t.payment_method === 'Crediário' && t.is_paid === false && ((t as any).card_name === card.name))
+            .filter(t => t.type === 'expense' && t.payment_method === 'Crediário' && t.is_paid === false && ((t as any).card_name === storeName))
             .reduce((acc, curr) => acc + (curr.amount - (curr.paid_amount || 0)), 0)
             
           if (crediarioPending <= 0) return null
             
           return (
-            <Card key={`cred-${card.id}`} className="glass border-border/50 border-purple-500/20 bg-purple-500/5">
+            <Card key={`cred-${storeName}`} className="glass border-border/50 border-purple-500/20 bg-purple-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-purple-500 line-clamp-1" title={`Loja ${card.name}`}>{card.name} (Crediário)</CardTitle>
+                <CardTitle className="text-sm font-medium text-purple-500 line-clamp-1" title={`Loja ${storeName}`}>{storeName} (Crediário)</CardTitle>
                 <Store className="h-4 w-4 text-purple-500 flex-shrink-0" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-500">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(crediarioPending)}
                 </div>
-                <Button onClick={() => setPayingInstallment({ store: card.name })} size="sm" variant="outline" className="w-full mt-3 h-7 text-xs border-purple-500/50 text-purple-500 hover:bg-purple-500 hover:text-white">
+                <Button onClick={() => setPayingInstallment({ store: storeName })} size="sm" variant="outline" className="w-full mt-3 h-7 text-xs border-purple-500/50 text-purple-500 hover:bg-purple-500 hover:text-white">
                   💰 Pagar Parcela
                 </Button>
               </CardContent>
