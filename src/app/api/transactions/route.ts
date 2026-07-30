@@ -75,8 +75,8 @@ export async function POST(req: Request) {
       necessity: autoNecessity,
       author_name: session.user.name || 'Desconhecido',
       payment_method: paymentMethod,
-      is_paid: paymentMethod === 'Cartão de Crédito' ? false : true,
-      card_name: paymentMethod === 'Cartão de Crédito' ? (body.cardName || null) : null,
+      is_paid: (paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Crediário') ? false : true,
+      card_name: (paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Crediário') ? (body.cardName || null) : null,
       goal_id: body.type === 'reserve' ? (body.goalId || null) : null,
       family_id: session.user.familyId
     }

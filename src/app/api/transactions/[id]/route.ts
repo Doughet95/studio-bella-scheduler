@@ -81,7 +81,8 @@ export async function PUT(
       type: body.type,
       necessity: autoNecessity,
       payment_method: paymentMethod,
-      card_name: paymentMethod === 'Cartão de Crédito' ? (body.cardName || null) : null,
+      is_paid: (paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Crediário') ? false : true,
+      card_name: (paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Crediário') ? (body.cardName || null) : null,
       goal_id: body.type === 'reserve' ? (body.goalId || null) : null
     }
 

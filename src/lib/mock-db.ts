@@ -12,6 +12,8 @@ export interface Transaction {
   is_paid?: boolean
   card_name?: string
   goal_id?: string
+  paid_amount?: number
+  payment_history?: any[]
 }
 
 export interface Goal {

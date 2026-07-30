@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
-import { ArrowDownIcon, ArrowUpIcon, Wallet, PiggyBank, Target, Loader2, Users, CreditCard, Banknote } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, Wallet, PiggyBank, Target, Loader2, Users, CreditCard, Banknote, Store, History, Check } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Transaction } from '@/lib/mock-db'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
 
@@ -13,6 +16,9 @@ export default function DashboardPage() {
   const [cards, setCards] = useState<{id: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [payingBill, setPayingBill] = useState<string | null>(null)
+  const [payingInstallment, setPayingInstallment] = useState<{ store: string, id?: string } | null>(null)
+  const [installmentAmount, setInstallmentAmount] = useState('')
+  const [submittingInstallment, setSubmittingInstallment] = useState(false)
   const { toast } = useToast()
 
   const fetchTransactions = () => {
@@ -59,10 +65,47 @@ export default function DashboardPage() {
     }
   }
 
+  const handlePayInstallment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!payingInstallment || !installmentAmount) return
+    setSubmittingInstallment(true)
+    
+    try {
+      const res = await fetch('/api/transactions/pay-installment', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          storeName: payingInstallment.store,
+          amount: parseFloat(installmentAmount)
+        })
+      })
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Falha ao abater crediário')
+      }
+      toast({ title: 'Abatimento Registrado!', description: `O valor foi descontado do total devido.` })
+      setPayingInstallment(null)
+      setInstallmentAmount('')
+      fetchTransactions()
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: error.message })
+    } finally {
+      setSubmittingInstallment(false)
+    }
+  }
+
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
   
-  // Expenses that are marked as paid (Dinheiro/PIX/Débito)
-  const cashExpenses = transactions.filter(t => t.type === 'expense' && t.is_paid !== false).reduce((acc, curr) => acc + curr.amount, 0)
+  // Expenses that are marked as paid (Dinheiro/PIX/Débito) + Paid amount of Crediário
+  const cashExpenses = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => {
+    if (curr.payment_method === 'Crediário') {
+      return acc + (curr.paid_amount || 0)
+    }
+    if (curr.is_paid !== false) {
+      return acc + curr.amount
+    }
+    return acc
+  }, 0)
   
   // Reserves (money moved to goals)
   const totalReserves = transactions.filter(t => t.type === 'reserve').reduce((acc, curr) => acc + curr.amount, 0)
@@ -175,6 +218,32 @@ export default function DashboardPage() {
             </Card>
           )
         })}
+
+        {/* Crediário Cards */}
+        {cards.map(card => {
+          const crediarioPending = transactions
+            .filter(t => t.type === 'expense' && t.payment_method === 'Crediário' && t.is_paid === false && ((t as any).card_name === card.name))
+            .reduce((acc, curr) => acc + (curr.amount - (curr.paid_amount || 0)), 0)
+            
+          if (crediarioPending <= 0) return null
+            
+          return (
+            <Card key={`cred-${card.id}`} className="glass border-border/50 border-purple-500/20 bg-purple-500/5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-purple-500 line-clamp-1" title={`Loja ${card.name}`}>{card.name} (Crediário)</CardTitle>
+                <Store className="h-4 w-4 text-purple-500 flex-shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-500">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(crediarioPending)}
+                </div>
+                <Button onClick={() => setPayingInstallment({ store: card.name })} size="sm" variant="outline" className="w-full mt-3 h-7 text-xs border-purple-500/50 text-purple-500 hover:bg-purple-500 hover:text-white">
+                  💰 Pagar Parcela
+                </Button>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Charts Section */}
@@ -258,6 +327,45 @@ export default function DashboardPage() {
           </CardHeader>
         </Card>
       )}
+
+      {/* Payment Modal */}
+      <Dialog open={!!payingInstallment} onOpenChange={(open) => !open && setPayingInstallment(null)}>
+        <DialogContent>
+          <form onSubmit={handlePayInstallment}>
+            <DialogHeader>
+              <DialogTitle>Pagar Crediário ({payingInstallment?.store})</DialogTitle>
+              <DialogDescription>
+                Informe o valor que você está pagando agora. Ele será abatido do saldo devedor desta loja.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4">
+              <Label>Valor a abater (R$)</Label>
+              <Input 
+                autoFocus
+                type="number" 
+                step="0.01" 
+                min="0.01" 
+                required 
+                placeholder="Ex: 50.00" 
+                value={installmentAmount}
+                onChange={(e) => setInstallmentAmount(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPayingInstallment(null)} disabled={submittingInstallment}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={submittingInstallment}>
+                {submittingInstallment ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                Confirmar Pagamento
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
