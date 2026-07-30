@@ -316,13 +316,17 @@ export default function DashboardPage() {
 
       {/* Insights Section */}
       {unnecessaryExpenses > 0 && (
-        <Card className="border-secondary/30 bg-secondary/5 mt-6">
+        <Card className="border-amber-500/50 bg-amber-500/10 mt-6 shadow-[0_0_15px_rgba(245,158,11,0.15)] relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 animate-pulse"></div>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-secondary">
-              <PiggyBank className="w-5 h-5" />
-              Alerta de Inteligência Artificial
+            <CardTitle className="text-xl flex items-center gap-2 text-amber-500 font-extrabold tracking-wide">
+              <span className="relative flex h-5 w-5 mr-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <PiggyBank className="relative inline-flex w-5 h-5 text-amber-500" />
+              </span>
+              ALERTA DE INTELIGÊNCIA ARTIFICIAL
             </CardTitle>
-            <CardDescription className="text-foreground/80 mt-2 text-sm leading-relaxed">
+            <CardDescription className="text-foreground/90 mt-3 text-sm leading-relaxed font-medium">
               O sistema analisou seus gastos e identificou que você gastou <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(unnecessaryExpenses)}</strong> em coisas desnecessárias recentemente 
               (como aplicativos de delivery, serviços de streaming, e compras de lazer).
               <br /><br />
