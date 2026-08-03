@@ -94,10 +94,13 @@ export default function DashboardPage() {
     }
   }
 
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
+  const currentMonthYear = new Date().toISOString().substring(0, 7)
+  const currentMonthTransactions = transactions.filter(t => t.date.startsWith(currentMonthYear))
+
+  const totalIncome = currentMonthTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0)
   
   // Expenses that are marked as paid (Dinheiro/PIX/Débito) + Paid amount of Crediário
-  const cashExpenses = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => {
+  const cashExpenses = currentMonthTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => {
     if (curr.payment_method === 'Crediário') {
       return acc + (curr.paid_amount || 0)
     }
@@ -108,19 +111,19 @@ export default function DashboardPage() {
   }, 0)
   
   // Reserves (money moved to goals)
-  const totalReserves = transactions.filter(t => t.type === 'reserve').reduce((acc, curr) => acc + curr.amount, 0)
+  const totalReserves = currentMonthTransactions.filter(t => t.type === 'reserve').reduce((acc, curr) => acc + curr.amount, 0)
   
   // Expenses that are pending (Cartão de Crédito)
   const pendingCardExpenses = transactions.filter(t => t.type === 'expense' && t.is_paid === false).reduce((acc, curr) => acc + curr.amount, 0)
 
   const balance = totalIncome - cashExpenses - totalReserves
-  const unnecessaryExpenses = transactions
+  const unnecessaryExpenses = currentMonthTransactions
     .filter(t => t.type === 'expense' && t.necessity === 'unnecessary')
     .reduce((acc, curr) => acc + curr.amount, 0)
 
   // Data for charts
   const expensesByCategory = Object.entries(
-    transactions
+    currentMonthTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
         acc[t.category] = (acc[t.category] || 0) + t.amount
@@ -129,7 +132,7 @@ export default function DashboardPage() {
   ).map(([name, total]) => ({ name, total }))
 
   const expensesByAuthor = Object.entries(
-    transactions
+    currentMonthTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
         const author = ((t as any).author_name || t.authorName)?.split(' ')[0] || 'Desconhecido'
