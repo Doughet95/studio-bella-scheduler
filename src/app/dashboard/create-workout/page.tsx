@@ -17,7 +17,34 @@ export default function CreateWorkoutPage() {
   const [selectedExercises, setSelectedExercises] = useState<{ exercise_id: string, default_sets: number, default_reps: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  
+  // Custom exercise states
+  const [customName, setCustomName] = useState("")
+  const [customMuscle, setCustomMuscle] = useState("")
+  const [creatingCustom, setCreatingCustom] = useState(false)
+  
   const router = useRouter()
+
+  const handleCreateCustomExercise = async () => {
+    if (!customName) return
+    setCreatingCustom(true)
+    
+    const targetMuscle = customMuscle.trim() || "Geral"
+    
+    const { data, error } = await supabase.from('exercises').insert([
+      { name: customName, target_muscle: targetMuscle }
+    ]).select().single()
+    
+    if (data && !error) {
+      setExercises(prev => [...prev, data])
+      addExercise(data.id)
+      setCustomName("")
+      setCustomMuscle("")
+    } else {
+      alert("Erro ao criar exercício customizado.")
+    }
+    setCreatingCustom(false)
+  }
 
   useEffect(() => {
     supabase.from('exercises').select('*').order('name').then(({ data }) => {
@@ -121,21 +148,46 @@ export default function CreateWorkoutPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             
-            {/* Seletor Simples */}
-            <div className="flex gap-2">
-              <select 
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                onChange={(e) => {
-                  addExercise(e.target.value)
-                  e.target.value = "" // reset
-                }}
-                defaultValue=""
-              >
-                <option value="" disabled>+ Adicionar Exercício</option>
-                {exercises.map(ex => (
-                  <option key={ex.id} value={ex.id}>{ex.name} ({ex.target_muscle})</option>
-                ))}
-              </select>
+            {/* Seletor de Exercícios e Criação Personalizada */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 rounded-lg bg-card/60 border border-border/50">
+              <div className="flex-1 space-y-2">
+                <Label>Buscar exercício salvo</Label>
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  onChange={(e) => {
+                    addExercise(e.target.value)
+                    e.target.value = "" // reset
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>+ Selecione da lista</option>
+                  {Array.from(new Map(exercises.map(e => [e.name, e])).values()).map(ex => (
+                    <option key={ex.id} value={ex.id}>{ex.name} ({ex.target_muscle})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="hidden md:flex items-center text-muted-foreground font-medium text-sm">OU</div>
+
+              <div className="flex-1 space-y-2">
+                <Label>Criar um novo exercício</Label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input 
+                    placeholder="Nome (ex: Rosca Martelo)" 
+                    value={customName}
+                    onChange={e => setCustomName(e.target.value)}
+                  />
+                  <Input 
+                    placeholder="Músculo" 
+                    className="sm:w-32"
+                    value={customMuscle}
+                    onChange={e => setCustomMuscle(e.target.value)}
+                  />
+                  <Button type="button" variant="secondary" onClick={handleCreateCustomExercise} disabled={!customName || creatingCustom}>
+                    {creatingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar"}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* Lista de Selecionados */}
