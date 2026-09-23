@@ -15,21 +15,26 @@ export default function Onboarding() {
   const router = useRouter()
 
   useEffect(() => {
-    supabase.from('goals').select('*').then(({ data, error }) => {
-      if (error) {
-        console.error("Erro ao carregar objetivos:", error)
-        alert("Erro de conexão com o banco de dados. Verifique se as variáveis de ambiente estão corretas na Vercel e faça um novo deploy.")
+    async function loadGoals() {
+      try {
+        const { data, error } = await supabase.from('goals').select('*')
+        
+        if (error) {
+          console.error("Erro ao carregar objetivos:", error)
+          alert("Erro de conexão com o banco de dados. Verifique se as variáveis de ambiente estão corretas na Vercel e faça um novo deploy.")
+        }
+        if (data && data.length > 0) {
+          setGoals(data)
+        } else if (data && data.length === 0) {
+          alert("Nenhum objetivo encontrado no banco de dados. Você rodou o script SQL?")
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
       }
-      if (data && data.length > 0) {
-        setGoals(data)
-      } else if (data && data.length === 0) {
-        alert("Nenhum objetivo encontrado no banco de dados. Você rodou o script SQL?")
-      }
-      setLoading(false)
-    }).catch(err => {
-      console.error(err)
-      setLoading(false)
-    })
+    }
+    loadGoals()
   }, [])
 
   const toggle = (id: string) => {
