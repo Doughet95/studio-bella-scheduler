@@ -61,15 +61,19 @@ export async function POST(req: Request) {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
-    // Limpa o markdown do JSON se a IA retornar com ```json
-    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Tenta encontrar um bloco JSON dentro da resposta (mesmo que a IA envie texto junto)
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('A IA não retornou um formato JSON válido. Resposta: ' + responseText.substring(0, 100));
+    }
     
+    const cleanJson = jsonMatch[0];
     const workoutPlan = JSON.parse(cleanJson);
 
     return NextResponse.json(workoutPlan);
     
   } catch (error: any) {
     console.error('Erro ao gerar treino:', error);
-    return NextResponse.json({ error: 'Falha ao processar com a IA' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Falha ao processar com a IA' }, { status: 500 });
   }
 }
