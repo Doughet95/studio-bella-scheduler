@@ -40,12 +40,30 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY || '';
     if (!apiKey) throw new Error("API Key não configurada");
 
-    const modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
+    let modelsToTry = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.0-flash', 'gemini-1.5-flash', 'gemini-pro'];
+
+    // RESTAURANDO A BUSCA DINÂMICA QUE FOI REMOVIDA SEM QUERER!
+    try {
+      const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const modelsData = await modelsRes.json();
+      if (modelsData && modelsData.models) {
+        const available = modelsData.models
+          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m: any) => m.name.replace('models/', ''));
+        
+        if (available.length > 0) {
+          modelsToTry = [...available, ...modelsToTry];
+        }
+      }
+    } catch (e) {
+      console.warn("Não foi possível listar os modelos, usando a lista padrão.");
+    }
+
+    modelsToTry = [...new Set(modelsToTry)];
 
     // Lança todos os modelos ao mesmo tempo (corrida) e o primeiro que responder sucesso ganha!
     const promises = modelsToTry.map(async (modelName) => {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      // Usamos AbortController para timeout de 20s
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20000);
       
@@ -74,8 +92,9 @@ export async function POST(req: Request) {
     let responseText = '';
     try {
       responseText = await Promise.any(promises);
-    } catch (e) {
-      throw new Error('Todos os modelos falharam ou demoraram muito.');
+    } catch (e: any) {
+      const msgs = e.errors ? e.errors.map((err: any) => err.message).join(' | ') : e.message;
+      throw new Error('Falha total. Erros: ' + msgs);
     }
     
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
