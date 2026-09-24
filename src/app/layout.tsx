@@ -12,6 +12,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import Image from "next/image";
+import bgGym from "../../public/bg-gym.jpg";
+
 export const metadata: Metadata = {
   title: "Gym Tracker AI",
   description: "Seu assistente virtual de academia.",
@@ -28,11 +31,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="fixed inset-0 z-0 bg-background pointer-events-none"></div>
         
         {/* Background Image Layer */}
-        <img 
-          src="/bg-gym.jpg" 
-          alt="Gym Background"
-          className="fixed inset-0 z-[1] w-full h-full object-cover opacity-60 pointer-events-none"
-        />
+        <div className="fixed inset-0 z-[1] pointer-events-none opacity-60">
+          <Image 
+            src={bgGym} 
+            alt="Gym Background"
+            fill
+            className="object-cover"
+            priority
+          />
+        </div>
         
         {/* Dark Gradient Overlay for readability */}
         <div className="fixed inset-0 z-[2] bg-gradient-to-b from-background/40 via-background/60 to-background/95 pointer-events-none"></div>
