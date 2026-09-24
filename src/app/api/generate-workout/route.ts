@@ -22,7 +22,11 @@ export async function POST(req: Request) {
 
     const catalogString = exercises.map(e => `[ID: ${e.id}] ${e.name} (${e.target_muscle})`).join('\n');
 
-    const prompt = `Você é um Personal Trainer de elite. Crie um treino ideal para este aluno:
+    const prompt = `ATENÇÃO: VOCÊ DEVE RESPONDER EXCLUSIVAMENTE COM UM OBJETO JSON VÁLIDO.
+    NÃO escreva nenhum texto adicional, nem antes nem depois do JSON. Não coloque crases (\`\`\`).
+    Apenas o objeto JSON puro que represente a ficha de treino.
+
+    Perfil do Aluno:
     - Idade: ${formData.idade}
     - Gênero: ${formData.genero}
     - Peso: ${formData.peso}kg, Altura: ${formData.altura}cm
@@ -37,24 +41,21 @@ export async function POST(req: Request) {
     ${catalogString}
 
     Regras:
-    1. Escolha APENAS exercícios que estejam na lista do Catálogo acima. Use o ID exato fornecido.
-    2. Crie uma divisão de treino lógica (ex: AB, ABC, ABCD dependendo dos dias na semana).
-    3. Monte a ficha para a rotina diária do aluno. Como o aplicativo dele funciona com "fichas de treino", você deve retornar apenas UMA ficha (por exemplo, "Treino A - Peito e Tríceps", ou "Treino Full Body"), mas que seja a principal, ou se ele for treinar 3x na semana e o treino for A,B,C, escolha a FICHA A para ele começar.
-    Wait, na verdade, para a estrutura do app, precisamos criar 1 Ficha Principal. Para simplificar, crie apenas 1 treino (ex: "Treino Adaptação - Full Body" ou "Treino A - Peito e Costas") que tenha entre 5 e 8 exercícios.
-
-    RETORNE APENAS UM JSON VÁLIDO no seguinte formato, sem nenhum outro texto, markdown ou explicações:
+    1. Escolha APENAS exercícios do catálogo acima. Use o ID exato fornecido.
+    2. Crie uma divisão de treino lógica e retorne 1 Ficha Principal.
+    
+    EXEMPLO DO ÚNICO FORMATO DE SAÍDA PERMITIDO:
     {
-      "workout_name": "Nome sugerido para o treino (ex: Treino de Força A)",
-      "days_of_week": ["Segunda", "Quarta", "Sexta"], // sugira dias ideais baseados na quantidade
+      "workout_name": "Treino A - Peito e Tríceps",
+      "days_of_week": ["Segunda", "Quarta", "Sexta"],
       "exercises": [
         {
-          "exercise_id": "UUID-do-exercicio",
+          "exercise_id": "UUID-AQUI",
           "default_sets": 3,
           "default_reps": "10-12"
         }
       ]
-    }
-    `;
+    }`;
 
     const apiKey = process.env.GEMINI_API_KEY || '';
     if (!apiKey) throw new Error("API Key não configurada");
@@ -98,7 +99,10 @@ export async function POST(req: Request) {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          body: JSON.stringify({ 
+            contents: [{ parts: [{ text: prompt }] }],
+            // generationConfig: { responseMimeType: "application/json" } // Alguns modelos falham com isso se não suportarem, melhor focar no prompt
+          })
         });
         
         const data = await res.json();
