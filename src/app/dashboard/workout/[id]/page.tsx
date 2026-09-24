@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, BrainCircuit, CheckCircle2 } from "lucide-react"
+import { Loader2, BrainCircuit, CheckCircle2, Timer, X } from "lucide-react"
 
 type WorkoutItem = {
   id: string
@@ -33,6 +33,15 @@ export default function WorkoutSessionPage() {
   const [saving, setSaving] = useState(false)
   const [aiTips, setAiTips] = useState<Record<string, string>>({})
   const [loadingAi, setLoadingAi] = useState<Record<string, boolean>>({})
+  const [restTimeLeft, setRestTimeLeft] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (restTimeLeft === null || restTimeLeft <= 0) return
+    const interval = setInterval(() => setRestTimeLeft(prev => prev! - 1), 1000)
+    return () => clearInterval(interval)
+  }, [restTimeLeft])
+
+  const startRest = (seconds: number) => setRestTimeLeft(seconds)
 
   useEffect(() => {
     async function load() {
@@ -137,6 +146,9 @@ export default function WorkoutSessionPage() {
     // Marca fim do treino
     await supabase.from('workout_sessions').update({ end_time: new Date().toISOString() }).eq('id', session.id)
 
+    // REGISTRA O CHECK-IN NO HISTÓRICO
+    await supabase.from('workout_history').insert([{ workout_id: id }])
+
     router.push('/dashboard')
   }
 
@@ -212,6 +224,15 @@ export default function WorkoutSessionPage() {
                         className="h-10"
                       />
                     </div>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-10 w-10 text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10 shrink-0" 
+                      onClick={() => startRest(60)}
+                      title="Iniciar Descanso de 60s"
+                    >
+                      <Timer className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -221,7 +242,16 @@ export default function WorkoutSessionPage() {
         ))}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-border z-10 flex justify-center">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-border z-10 flex flex-col items-center gap-3">
+        {restTimeLeft !== null && restTimeLeft > 0 && (
+          <div className="bg-emerald-500 text-white px-6 py-2.5 rounded-full shadow-xl shadow-emerald-500/20 font-bold flex items-center gap-2 animate-in slide-in-from-bottom-4">
+            <Timer className="w-5 h-5 animate-pulse" />
+            Descanso: {Math.floor(restTimeLeft / 60)}:{(restTimeLeft % 60).toString().padStart(2, '0')}
+            <Button variant="ghost" size="icon" className="h-6 w-6 ml-2 hover:bg-emerald-600 rounded-full" onClick={() => setRestTimeLeft(null)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
         <Button 
           size="lg" 
           className="w-full max-w-2xl font-bold h-14 text-lg shadow-xl shadow-primary/20"

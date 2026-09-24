@@ -7,7 +7,13 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { PlusCircle, PlayCircle, Loader2, Trash2, Edit } from "lucide-react"
 
-type Workout = { id: string, name: string, created_at: string, days_of_week: string[] }
+type Workout = { 
+  id: string, 
+  name: string, 
+  created_at: string, 
+  days_of_week: string[],
+  workout_history?: [{ count: number }]
+}
 
 export default function DashboardPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -16,10 +22,11 @@ export default function DashboardPage() {
   const loadWorkouts = () => {
     setLoading(true)
     supabase.from('workouts')
-      .select('*')
+      .select('*, workout_history(count)')
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        if (data) setWorkouts(data)
+      .then(({ data, error }) => {
+        if (error) console.error(error)
+        if (data) setWorkouts(data as unknown as Workout[])
         setLoading(false)
       })
   }
@@ -75,7 +82,9 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {workouts.map(workout => (
+          {workouts.map(workout => {
+            const checkins = workout.workout_history?.[0]?.count || 0;
+            return (
             <Card key={workout.id} className="bg-card/40 border-border/50 hover:border-primary/50 transition-colors group relative">
               <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                 <Link href={`/dashboard/edit-workout/${workout.id}`}>
@@ -98,6 +107,9 @@ export default function DashboardPage() {
                   {workout.days_of_week && workout.days_of_week.length > 0 
                     ? `Dias: ${workout.days_of_week.join(', ')}` 
                     : `Criado em ${new Date(workout.created_at).toLocaleDateString('pt-BR')}`}
+                  <span className="block mt-1.5 font-medium text-emerald-500 bg-emerald-500/10 w-fit px-2 py-0.5 rounded text-xs">
+                    ✅ Feito {checkins} vez{checkins !== 1 ? 'es' : ''}
+                  </span>
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -109,7 +121,7 @@ export default function DashboardPage() {
                 </Link>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       )}
     </div>
