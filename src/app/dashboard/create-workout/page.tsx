@@ -22,6 +22,10 @@ export default function CreateWorkoutPage() {
   const [customName, setCustomName] = useState("")
   const [customMuscle, setCustomMuscle] = useState("")
   const [creatingCustom, setCreatingCustom] = useState(false)
+  const [selectedFromList, setSelectedFromList] = useState("")
+  
+  // Workout states
+  const [selectedDays, setSelectedDays] = useState<string[]>([])
   
   const router = useRouter()
 
@@ -81,7 +85,10 @@ export default function CreateWorkoutPage() {
     // 1. Criar a ficha de treino
     const { data: workout, error: workoutError } = await supabase
       .from('workouts')
-      .insert([{ name }])
+      .insert([{ 
+        name,
+        days_of_week: selectedDays.length > 0 ? `{${selectedDays.join(',')}}` : null
+      }])
       .select()
       .single()
 
@@ -148,23 +155,54 @@ export default function CreateWorkoutPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             
+            {/* Seletor de Dias da Semana */}
+            <div className="mb-6 space-y-3">
+              <Label>Dias da Semana (Opcional)</Label>
+              <div className="flex flex-wrap gap-2">
+                {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(day => (
+                  <Button
+                    key={day}
+                    type="button"
+                    variant={selectedDays.includes(day) ? "default" : "outline"}
+                    className="h-9"
+                    onClick={() => {
+                      setSelectedDays(prev => 
+                        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                      )
+                    }}
+                  >
+                    {day.substring(0, 3)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* Seletor de Exercícios e Criação Personalizada */}
             <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 rounded-lg bg-card/60 border border-border/50">
               <div className="flex-1 space-y-2">
                 <Label>Buscar exercício salvo</Label>
-                <select 
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  onChange={(e) => {
-                    addExercise(e.target.value)
-                    e.target.value = "" // reset
-                  }}
-                  defaultValue=""
-                >
-                  <option value="" disabled>+ Selecione da lista</option>
-                  {Array.from(new Map(exercises.map(e => [e.name, e])).values()).map(ex => (
-                    <option key={ex.id} value={ex.id}>{ex.name} ({ex.target_muscle})</option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onChange={(e) => setSelectedFromList(e.target.value)}
+                    value={selectedFromList}
+                  >
+                    <option value="" disabled>Selecione da lista...</option>
+                    {Array.from(new Map(exercises.map(e => [e.name, e])).values()).map(ex => (
+                      <option key={ex.id} value={ex.id}>{ex.name} ({ex.target_muscle})</option>
+                    ))}
+                  </select>
+                  <Button 
+                    type="button" 
+                    onClick={() => {
+                      addExercise(selectedFromList)
+                      setSelectedFromList("")
+                    }}
+                    disabled={!selectedFromList}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
               </div>
 
               <div className="hidden md:flex items-center text-muted-foreground font-medium text-sm">OU</div>
@@ -184,7 +222,7 @@ export default function CreateWorkoutPage() {
                     onChange={e => setCustomMuscle(e.target.value)}
                   />
                   <Button type="button" variant="secondary" onClick={handleCreateCustomExercise} disabled={!customName || creatingCustom}>
-                    {creatingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar"}
+                    {creatingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar e Adicionar"}
                   </Button>
                 </div>
               </div>

@@ -5,15 +5,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { PlusCircle, PlayCircle, Loader2 } from "lucide-react"
+import { PlusCircle, PlayCircle, Loader2, Trash2 } from "lucide-react"
 
-type Workout = { id: string, name: string, created_at: string }
+type Workout = { id: string, name: string, created_at: string, days_of_week: string[] }
 
 export default function DashboardPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadWorkouts = () => {
+    setLoading(true)
     supabase.from('workouts')
       .select('*')
       .order('created_at', { ascending: true })
@@ -21,7 +22,24 @@ export default function DashboardPage() {
         if (data) setWorkouts(data)
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    loadWorkouts()
   }, [])
+
+  const deleteWorkout = async (id: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o treino "${name}"?`)) return
+    
+    // Deletar o treino (dependências como logs e exercise_links devem usar ON DELETE CASCADE no banco, 
+    // mas se não usarem, o supabase pode falhar. Vamos assumir que criamos corretamente)
+    const { error } = await supabase.from('workouts').delete().eq('id', id)
+    if (error) {
+      alert("Erro ao excluir. Pode haver sessões atreladas a este treino.")
+    } else {
+      loadWorkouts()
+    }
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -60,10 +78,22 @@ export default function DashboardPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {workouts.map(workout => (
-            <Card key={workout.id} className="bg-card/40 border-border/50 hover:border-primary/50 transition-colors group">
-              <CardHeader className="pb-3">
+            <Card key={workout.id} className="bg-card/40 border-border/50 hover:border-primary/50 transition-colors group relative">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => deleteWorkout(workout.id, workout.name)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+              <CardHeader className="pb-3 pr-10">
                 <CardTitle className="text-xl">{workout.name}</CardTitle>
-                <CardDescription>Criado em {new Date(workout.created_at).toLocaleDateString('pt-BR')}</CardDescription>
+                <CardDescription>
+                  {workout.days_of_week && workout.days_of_week.length > 0 
+                    ? `Dias: ${workout.days_of_week.join(', ')}` 
+                    : `Criado em ${new Date(workout.created_at).toLocaleDateString('pt-BR')}`}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Link href={`/dashboard/workout/${workout.id}`}>
