@@ -30,12 +30,24 @@ export async function POST(req: Request) {
     CATÁLOGO DE EXERCÍCIOS:
     ${catalogString}
 
-    Regras: Escolha exercícios do catálogo. Retorne APENAS um JSON no formato exato:
-    {
-      "workout_name": "Treino A - Peito e Tríceps",
-      "days_of_week": ["Segunda", "Quarta"],
-      "exercises": [ { "exercise_id": "UUID-AQUI", "default_sets": 3, "default_reps": "10-12" } ]
-    }`;
+    Regras:
+    1. Escolha APENAS exercícios do catálogo acima. Use o ID exato fornecido.
+    2. Crie uma divisão de treino lógica baseada nos dias por semana (ex: AB, ABC, ABCD). Para 5 dias, você pode fazer ABCAB, ou ABCDE.
+    3. RETORNE UM ARRAY JSON contendo TODAS as fichas necessárias (ex: se for um treino ABC, o array deve ter 3 objetos).
+    
+    EXEMPLO DO ÚNICO FORMATO DE SAÍDA PERMITIDO (Array de Fichas):
+    [
+      {
+        "workout_name": "Treino A - Peito e Tríceps",
+        "days_of_week": ["Segunda", "Quinta"],
+        "exercises": [ { "exercise_id": "UUID-AQUI", "default_sets": 3, "default_reps": "10-12" } ]
+      },
+      {
+        "workout_name": "Treino B - Costas e Bíceps",
+        "days_of_week": ["Terça", "Sexta"],
+        "exercises": [ { "exercise_id": "UUID-AQUI", "default_sets": 4, "default_reps": "8-10" } ]
+      }
+    ]`;
 
     const apiKey = process.env.GEMINI_API_KEY || '';
     if (!apiKey) throw new Error("API Key não configurada");

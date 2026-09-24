@@ -51,29 +51,32 @@ export default function OnboardingPage() {
         return
       }
 
-      // 2. Salvar Ficha no Supabase
-      const { data: workout, error: workoutError } = await supabase
-        .from('workouts')
-        .insert([{ 
-          name: plan.workout_name || "Treino IA",
-          days_of_week: plan.days_of_week && plan.days_of_week.length > 0 ? `{${plan.days_of_week.join(',')}}` : null
-        }])
-        .select()
-        .single()
+      // 2. Salvar Fichas no Supabase (o plano agora é um Array de fichas)
+      const workoutsArray = Array.isArray(plan) ? plan : [plan];
 
-      if (workoutError || !workout) throw new Error("Erro ao salvar treino")
+      for (const w of workoutsArray) {
+        const { data: workout, error: workoutError } = await supabase
+          .from('workouts')
+          .insert([{ 
+            name: w.workout_name || "Treino IA",
+            days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(',')}}` : null
+          }])
+          .select()
+          .single()
 
-      // 3. Vincular exercícios
-      const exercisesToInsert = plan.exercises.map((ex: any, idx: number) => ({
-        workout_id: workout.id,
-        exercise_id: ex.exercise_id,
-        default_sets: ex.default_sets || 3,
-        default_reps: ex.default_reps || "10-12",
-        order_index: idx,
-        is_superset: false // simplificando
-      }))
-
-      await supabase.from('workout_exercises').insert(exercisesToInsert)
+        if (!workoutError && workout && w.exercises) {
+          // 3. Vincular exercícios daquela ficha
+          const exercisesToInsert = w.exercises.map((ex: any, idx: number) => ({
+            workout_id: workout.id,
+            exercise_id: ex.exercise_id,
+            default_sets: ex.default_sets || 3,
+            default_reps: ex.default_reps || "10-12",
+            order_index: idx,
+            is_superset: false
+          }))
+          await supabase.from('workout_exercises').insert(exercisesToInsert)
+        }
+      }
 
       // 4. Redirecionar
       router.push('/dashboard')
