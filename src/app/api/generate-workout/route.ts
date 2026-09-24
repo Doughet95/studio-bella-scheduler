@@ -56,10 +56,54 @@ export async function POST(req: Request) {
     }
     `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
-    
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const apiKey = process.env.GEMINI_API_KEY || '';
+    if (!apiKey) throw new Error("API Key não configurada");
+
+    // Solução DEFINITIVA: Loop de fallback que tenta todos os modelos conhecidos
+    // Usando fetch bruto para não depender de falhas do SDK
+    const modelsToTry = [
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-pro',
+      'gemini-1.0-pro',
+      'gemini-3.0-flash'
+    ];
+
+    let responseText = '';
+    let lastError = '';
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Tentando modelo: ${modelName}...`);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+          lastError = data.error?.message || JSON.stringify(data);
+          console.warn(`Falha no modelo ${modelName}:`, lastError);
+          continue; // Tenta o próximo modelo!
+        }
+
+        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+          responseText = data.candidates[0].content.parts[0].text;
+          console.log(`Sucesso com o modelo: ${modelName}!`);
+          break; // Sucesso absoluto, sai do loop
+        }
+      } catch (e: any) {
+        lastError = e.message;
+        console.warn(`Erro de rede no modelo ${modelName}:`, e.message);
+      }
+    }
+
+    if (!responseText) {
+      throw new Error(`Todos os modelos falharam. Último erro do Google: ${lastError}`);
+    }
     
     // Tenta encontrar um bloco JSON dentro da resposta (mesmo que a IA envie texto junto)
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
