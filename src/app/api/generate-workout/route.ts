@@ -108,9 +108,11 @@ export async function POST(req: Request) {
       const msgs = e.errors ? e.errors.map((err: any) => err.message).join(' | ') : e.message;
       throw new Error('Falha total. Erros: ' + msgs);
     }
-    
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('A IA não retornou JSON válido.');
+    // Tenta encontrar um bloco JSON dentro da resposta (Array ou Objeto)
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/) || responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('A IA não retornou JSON válido.');
+    }
     
     const cleanJson = jsonMatch[0];
     const workoutPlan = JSON.parse(cleanJson);
