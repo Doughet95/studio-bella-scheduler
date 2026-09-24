@@ -41,7 +41,7 @@ export default function WorkoutSessionPage() {
 
       const { data: exData } = await supabase
         .from('workout_exercises')
-        .select('id, exercise_id, default_sets, default_reps, exercises(name, target_muscle)')
+        .select('id, exercise_id, default_sets, default_reps, is_superset, exercises(name, target_muscle)')
         .eq('workout_id', id)
         .order('order_index', { ascending: true })
 
@@ -150,9 +150,18 @@ export default function WorkoutSessionPage() {
       </div>
 
       <div className="space-y-6">
-        {items.map(item => (
-          <Card key={item.id} className="bg-card/40 border-border/50">
-            <CardHeader className="pb-3 flex flex-row items-start justify-between">
+        {items.map((item: any, index: number) => (
+          <div key={item.id} className="relative">
+            {item.is_superset && (
+              <div className="absolute -top-6 left-8 h-6 w-1 bg-primary z-10"></div>
+            )}
+            <Card className={`bg-card/40 ${item.is_superset ? 'border-primary/50' : 'border-border/50'} relative z-20`}>
+              {item.is_superset && (
+                <div className="absolute -top-3 left-4 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                  BI-SET
+                </div>
+              )}
+              <CardHeader className={`pb-3 flex flex-row items-start justify-between ${item.is_superset ? 'pt-6' : ''}`}>
               <div>
                 <CardTitle className="text-xl">{item.exercises.name}</CardTitle>
                 <CardDescription>Músculo: {item.exercises.target_muscle} • Alvo: {item.default_reps} reps</CardDescription>
@@ -208,6 +217,7 @@ export default function WorkoutSessionPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         ))}
       </div>
 

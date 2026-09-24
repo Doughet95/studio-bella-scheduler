@@ -6,15 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { useParams, useRouter } from "next/navigation"
+import { Loader2, Save, Trash2 } from "lucide-react"
 
 type Exercise = { id: string, name: string, target_muscle: string }
 
-export default function CreateWorkoutPage() {
+export default function EditWorkoutPage() {
+  const { id } = useParams()
   const [name, setName] = useState("")
   const [exercises, setExercises] = useState<Exercise[]>([])
-  const [selectedExercises, setSelectedExercises] = useState<{ exercise_id: string, default_sets: number, default_reps: string }[]>([])
+  const [selectedExercises, setSelectedExercises] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   
@@ -51,17 +52,39 @@ export default function CreateWorkoutPage() {
   }
 
   useEffect(() => {
-    supabase.from('exercises').select('*').order('name').then(({ data }) => {
-      if (data) setExercises(data)
+    async function loadData() {
+      // Carregar catálogo de exercícios
+      const { data: exData } = await supabase.from('exercises').select('*').order('name')
+      if (exData) setExercises(exData)
+      
+      // Carregar os dados da ficha
+      const { data: wData } = await supabase.from('workouts').select('*').eq('id', id).single()
+      if (wData) {
+        setName(wData.name)
+        if (wData.days_of_week) setSelectedDays(wData.days_of_week)
+      }
+      
+      // Carregar os exercícios da ficha
+      const { data: wExData } = await supabase.from('workout_exercises').select('*').eq('workout_id', id).order('order_index')
+      if (wExData) {
+        setSelectedExercises(wExData.map(e => ({
+          exercise_id: e.exercise_id,
+          default_sets: e.default_sets,
+          default_reps: e.default_reps,
+          is_superset: e.is_superset || false
+        })))
+      }
+      
       setLoading(false)
-    })
-  }, [])
+    }
+    loadData()
+  }, [id])
 
   const addExercise = (exerciseId: string) => {
     if (!exerciseId) return
     setSelectedExercises(prev => [
       ...prev,
-      { exercise_id: exerciseId, default_sets: 3, default_reps: "10-12" }
+      { exercise_id: exerciseId, default_sets: 3, default_reps: "10-12", is_superset: false }
     ])
   }
 
@@ -69,7 +92,7 @@ export default function CreateWorkoutPage() {
     setSelectedExercises(prev => prev.filter((_, i) => i !== index))
   }
 
-  const updateExerciseConfig = (index: number, field: 'default_sets' | 'default_reps', value: any) => {
+  const updateExerciseConfig = (index: number, field: string, value: any) => {
     setSelectedExercises(prev => {
       const updated = [...prev]
       updated[index] = { ...updated[index], [field]: value }
@@ -82,25 +105,27 @@ export default function CreateWorkoutPage() {
     if (!name || selectedExercises.length === 0) return
     setSaving(true)
 
-    // 1. Criar a ficha de treino
-    const { data: workout, error: workoutError } = await supabase
+    // 1. Atualizar a ficha de treino
+    const { error: workoutError } = await supabase
       .from('workouts')
-      .insert([{ 
+      .update({ 
         name,
         days_of_week: selectedDays.length > 0 ? `{${selectedDays.join(',')}}` : null
-      }])
-      .select()
-      .single()
+      })
+      .eq('id', id)
 
-    if (workoutError || !workout) {
-      alert("Erro ao criar treino.")
+    if (workoutError) {
+      alert("Erro ao atualizar treino.")
       setSaving(false)
       return
     }
 
-    // 2. Vincular os exercícios à ficha
+    // Limpar os exercícios antigos
+    await supabase.from('workout_exercises').delete().eq('workout_id', id)
+
+    // 2. Inserir os novos
     const exercisesToInsert = selectedExercises.map((ex: any, index) => ({
-      workout_id: workout.id,
+      workout_id: id,
       exercise_id: ex.exercise_id,
       default_sets: ex.default_sets,
       default_reps: ex.default_reps,
@@ -113,7 +138,7 @@ export default function CreateWorkoutPage() {
       .insert(exercisesToInsert)
 
     if (exercisesError) {
-      alert("Erro ao vincular exercícios.")
+      alert("Erro ao salvar exercícios.")
       setSaving(false)
       return
     }
@@ -128,8 +153,8 @@ export default function CreateWorkoutPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Criar Nova Ficha</h1>
-        <p className="text-muted-foreground mt-1">Monte seu treino selecionando os exercícios.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Editar Ficha</h1>
+        <p className="text-muted-foreground mt-1">Altere o nome, os dias ou os exercícios da ficha.</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -300,8 +325,8 @@ export default function CreateWorkoutPage() {
         </Card>
 
         <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={saving || !name || selectedExercises.length === 0}>
-          {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
-          Salvar Ficha de Treino
+          {saving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
+          Salvar Alterações
         </Button>
       </form>
     </div>
