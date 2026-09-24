@@ -59,15 +59,34 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY || '';
     if (!apiKey) throw new Error("API Key não configurada");
 
-    // Solução DEFINITIVA: Loop de fallback que tenta todos os modelos conhecidos
-    // Usando fetch bruto para não depender de falhas do SDK
-    const modelsToTry = [
+    // Vamos buscar QUAIS modelos essa chave tem acesso diretamente na fonte
+    let modelsToTry = [
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3.0-flash',
       'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-pro',
-      'gemini-1.0-pro',
-      'gemini-3.0-flash'
+      'gemini-pro'
     ];
+
+    try {
+      const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const modelsData = await modelsRes.json();
+      if (modelsData && modelsData.models) {
+        const available = modelsData.models
+          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m: any) => m.name.replace('models/', ''));
+        
+        if (available.length > 0) {
+          // Coloca os modelos disponíveis no início da fila de tentativas
+          modelsToTry = [...available, ...modelsToTry];
+        }
+      }
+    } catch (e) {
+      console.warn("Não foi possível listar os modelos, usando a lista padrão.");
+    }
+
+    // Remove duplicatas
+    modelsToTry = [...new Set(modelsToTry)];
 
     let responseText = '';
     let lastError = '';
@@ -102,7 +121,7 @@ export async function POST(req: Request) {
     }
 
     if (!responseText) {
-      throw new Error(`Todos os modelos falharam. Último erro do Google: ${lastError}`);
+      throw new Error(`Todos os modelos falharam. Último erro: ${lastError}`);
     }
     
     // Tenta encontrar um bloco JSON dentro da resposta (mesmo que a IA envie texto junto)
