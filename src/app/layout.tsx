@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import Image from "next/image";
-import bgGym from "../../public/bg-gym.jpg";
+import novoFundo from "../../public/novo-fundo.jpg";
 
 export const metadata: Metadata = {
   title: "Gym Tracker AI",
@@ -26,14 +26,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="pt-BR"
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-foreground selection:bg-primary selection:text-primary-foreground bg-background">
+      <body className="min-h-full flex flex-col text-foreground selection:bg-primary selection:text-primary-foreground bg-background relative">
         {/* Fixed background color to ensure no white flash */}
         <div className="fixed inset-0 z-0 bg-background pointer-events-none"></div>
         
-        {/* Background Image Layer */}
-        <div className="fixed inset-0 z-[1] pointer-events-none opacity-60">
+        {/* Background Image Layer - 100% Opacity */}
+        <div className="fixed inset-0 z-[1] pointer-events-none opacity-100">
           <Image 
-            src={bgGym} 
+            src={novoFundo} 
             alt="Gym Background"
             fill
             className="object-cover"
@@ -41,8 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         </div>
         
-        {/* Dark Gradient Overlay for readability */}
-        <div className="fixed inset-0 z-[2] bg-gradient-to-b from-background/40 via-background/60 to-background/95 pointer-events-none"></div>
+        {/* Removed Dark Gradient Overlay completely to ensure full visibility */}
         
         <div className="relative z-10 flex-1 flex flex-col">
           {children}
