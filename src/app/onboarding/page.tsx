@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 
+import { supabase } from "@/lib/supabase"
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -33,11 +35,53 @@ export default function OnboardingPage() {
 
   const handleGenerate = async () => {
     setLoading(true)
-    // Simulando a geração da IA por enquanto (vai ser feito no futuro)
-    setTimeout(() => {
-      alert("Suas preferências foram salvas! (Em breve a IA gerará sua ficha aqui)")
+    try {
+      // 1. Chamar a IA
+      const res = await fetch('/api/generate-workout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      
+      const plan = await res.json()
+      
+      if (plan.error) {
+        alert("Erro na IA: " + plan.error)
+        setLoading(false)
+        return
+      }
+
+      // 2. Salvar Ficha no Supabase
+      const { data: workout, error: workoutError } = await supabase
+        .from('workouts')
+        .insert([{ 
+          name: plan.workout_name || "Treino IA",
+          days_of_week: plan.days_of_week && plan.days_of_week.length > 0 ? `{${plan.days_of_week.join(',')}}` : null
+        }])
+        .select()
+        .single()
+
+      if (workoutError || !workout) throw new Error("Erro ao salvar treino")
+
+      // 3. Vincular exercícios
+      const exercisesToInsert = plan.exercises.map((ex: any, idx: number) => ({
+        workout_id: workout.id,
+        exercise_id: ex.exercise_id,
+        default_sets: ex.default_sets || 3,
+        default_reps: ex.default_reps || "10-12",
+        order_index: idx,
+        is_superset: false // simplificando
+      }))
+
+      await supabase.from('workout_exercises').insert(exercisesToInsert)
+
+      // 4. Redirecionar
       router.push('/dashboard')
-    }, 2000)
+    } catch (e) {
+      console.error(e)
+      alert("Falha ao gerar treino. Verifique a API Key do Gemini.")
+      setLoading(false)
+    }
   }
 
   return (
