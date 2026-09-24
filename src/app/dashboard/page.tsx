@@ -85,36 +85,39 @@ export default function DashboardPage() {
           {workouts.map(workout => {
             const checkins = workout.workout_history?.[0]?.count || 0;
             return (
-            <Card key={workout.id} className="bg-card/40 border-border/50 hover:border-primary/50 transition-colors group relative">
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            <Card key={workout.id} className="bg-card/20 backdrop-blur-xl border-white/10 hover:border-primary/50 shadow-2xl hover:shadow-primary/20 transition-all duration-300 group relative overflow-hidden">
+              {/* Subtle gradient glow behind the card */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
                 <Link href={`/dashboard/edit-workout/${workout.id}`}>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10">
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/20">
                     <Edit className="w-4 h-4" />
                   </Button>
                 </Link>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/20"
                   onClick={() => deleteWorkout(workout.id, workout.name)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-              <CardHeader className="pb-3 pr-20">
-                <CardTitle className="text-xl truncate">{workout.name}</CardTitle>
+              <CardHeader className="pb-3 pr-20 relative z-10">
+                <CardTitle className="text-xl truncate text-foreground group-hover:text-primary transition-colors">{workout.name}</CardTitle>
                 <CardDescription>
                   {workout.days_of_week && workout.days_of_week.length > 0 
                     ? `Dias: ${workout.days_of_week.join(', ')}` 
                     : `Criado em ${new Date(workout.created_at).toLocaleDateString('pt-BR')}`}
-                  <span className="block mt-1.5 font-medium text-emerald-500 bg-emerald-500/10 w-fit px-2 py-0.5 rounded text-xs">
+                  <span className="block mt-2 font-medium text-primary bg-primary/10 border border-primary/20 w-fit px-2.5 py-1 rounded-md text-xs shadow-sm">
                     ✅ Feito {checkins} vez{checkins !== 1 ? 'es' : ''}
                   </span>
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 <Link href={`/dashboard/workout/${workout.id}`}>
-                  <Button className="w-full font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                  <Button className="w-full font-bold bg-primary/90 hover:bg-primary text-primary-foreground transition-all duration-300 group-hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/25">
                     <PlayCircle className="w-5 h-5 mr-2" />
                     Iniciar Treino
                   </Button>

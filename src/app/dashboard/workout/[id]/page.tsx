@@ -167,13 +167,14 @@ export default function WorkoutSessionPage() {
             {item.is_superset && (
               <div className="absolute -top-6 left-8 h-6 w-1 bg-primary z-10"></div>
             )}
-            <Card className={`bg-card/40 ${item.is_superset ? 'border-primary/50' : 'border-border/50'} relative z-20`}>
+            <Card className={`bg-card/20 backdrop-blur-xl ${item.is_superset ? 'border-primary/50 shadow-primary/20' : 'border-white/10'} shadow-2xl relative z-20 overflow-hidden`}>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
               {item.is_superset && (
-                <div className="absolute -top-3 left-4 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                <div className="absolute -top-3 left-4 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-primary/30">
                   BI-SET
                 </div>
               )}
-              <CardHeader className={`pb-3 flex flex-row items-start justify-between ${item.is_superset ? 'pt-6' : ''}`}>
+              <CardHeader className={`pb-3 flex flex-row items-start justify-between relative z-10 ${item.is_superset ? 'pt-6' : ''}`}>
               <div>
                 <CardTitle className="text-xl">{item.exercises.name}</CardTitle>
                 <CardDescription>Músculo: {item.exercises.target_muscle} • Alvo: {item.default_reps} reps</CardDescription>

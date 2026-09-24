@@ -23,7 +23,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="pt-BR"
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-primary selection:text-primary-foreground relative">
+        {/* Background Image Layer */}
+        <div 
+          className="fixed inset-0 z-[-2] bg-cover bg-center bg-no-repeat opacity-30"
+          style={{ backgroundImage: 'url(/bg-gym.jpg)' }}
+        ></div>
+        {/* Dark Gradient Overlay for readability */}
+        <div className="fixed inset-0 z-[-1] bg-gradient-to-t from-background via-background/90 to-background/50"></div>
+        
         {children}
       </body>
     </html>
