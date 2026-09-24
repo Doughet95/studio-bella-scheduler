@@ -29,12 +29,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         
         {/* Background Image Layer */}
         <div 
-          className="fixed inset-0 z-[1] bg-cover bg-center bg-no-repeat opacity-40 pointer-events-none"
+          className="fixed inset-0 z-[1] bg-cover bg-center bg-no-repeat opacity-100 pointer-events-none"
           style={{ backgroundImage: 'url(/bg-gym.jpg)' }}
         ></div>
         
         {/* Dark Gradient Overlay for readability */}
-        <div className="fixed inset-0 z-[2] bg-gradient-to-t from-background via-background/90 to-background/50 pointer-events-none"></div>
+        <div className="fixed inset-0 z-[2] bg-gradient-to-b from-background/20 via-background/40 to-background/90 pointer-events-none"></div>
         
         <div className="relative z-10 flex-1 flex flex-col">
           {children}
