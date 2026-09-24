@@ -56,32 +56,7 @@ export async function POST(req: Request) {
     }
     `;
 
-    // Busca dinamicamente os modelos disponíveis para esta chave de API para evitar erro 404
-    const apiKey = process.env.GEMINI_API_KEY;
-    let modelName = "gemini-1.5-flash"; // fallback padrão
-
-    try {
-      const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-      const modelsData = await modelsRes.json();
-      if (modelsData && modelsData.models) {
-        // Tenta encontrar um modelo flash que suporte generateContent
-        const validModels = modelsData.models.filter((m: any) => 
-          m.supportedGenerationMethods?.includes('generateContent') && 
-          m.name.includes('flash')
-        );
-        if (validModels.length > 0) {
-          modelName = validModels[0].name.replace('models/', '');
-        } else {
-          // Se não tiver flash, pega o primeiro que suporte generateContent
-          const anyModel = modelsData.models.find((m: any) => m.supportedGenerationMethods?.includes('generateContent'));
-          if (anyModel) modelName = anyModel.name.replace('models/', '');
-        }
-      }
-    } catch (e) {
-      console.log("Erro ao buscar modelos disponíveis, usando o padrão", e);
-    }
-
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
     
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
