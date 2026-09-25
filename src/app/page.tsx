@@ -42,10 +42,16 @@ export default function Home() {
         if (error) throw error;
         router.push("/dashboard");
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        // Assume success, usually goes to dashboard or asks for email verification depending on Supabase settings.
-        // We'll redirect to onboarding for new users.
+        
+        if (!data.session) {
+          setErrorMsg("Conta criada! Mas atenção: o Supabase exige confirmação. Desative 'Confirm email' no seu painel Supabase ou verifique sua caixa de entrada.");
+          setIsSubmitting(false);
+          return;
+        }
+        
+        // Assume success and session exists
         router.push("/onboarding");
       }
     } catch (err: any) {
