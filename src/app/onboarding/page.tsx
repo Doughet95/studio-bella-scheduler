@@ -22,12 +22,21 @@ export default function OnboardingPage() {
     peso: "",
     altura: "",
     genero: "",
-    objetivo: "",
+    objetivos: [] as string[],
     experiencia: "",
     diasPorSemana: "",
     tempoPorTreino: "",
     lesoes: "",
-    observacoes: ""
+    observacoes: "",
+    medidas_braco: "",
+    medidas_peito: "",
+    medidas_cintura: "",
+    medidas_coxa: "",
+    medidas_quadril: "",
+    medidas_bumbum: "",
+    dieta_refeicoes: "",
+    dieta_doces_frituras: "",
+    dieta_agua: ""
   })
 
   const handleNext = () => setStep(s => s + 1)
@@ -36,6 +45,14 @@ export default function OnboardingPage() {
   const handleGenerate = async () => {
     setLoading(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert("Você precisa estar logado para criar treinos.");
+        setLoading(false);
+        router.push('/');
+        return;
+      }
+
       // 1. Chamar a IA
       const res = await fetch('/api/generate-workout', {
         method: 'POST',
@@ -59,7 +76,8 @@ export default function OnboardingPage() {
           .from('workouts')
           .insert([{ 
             name: w.workout_name || "Treino IA",
-            days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(',')}}` : null
+            days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(',')}}` : null,
+            user_id: session.user.id
           }])
           .select()
           .single()
@@ -93,7 +111,7 @@ export default function OnboardingPage() {
         
         {/* Progresso */}
         <div className="flex gap-2 mb-8 px-4">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className={`h-2 flex-1 rounded-full transition-colors ${step >= i ? 'bg-primary' : 'bg-primary/20'}`} />
           ))}
         </div>
@@ -151,29 +169,35 @@ export default function OnboardingPage() {
                   <Dumbbell className="w-6 h-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">Objetivo Principal</CardTitle>
-                <CardDescription>O que você deseja alcançar com os treinos?</CardDescription>
+                <CardDescription>O que você deseja alcançar com os treinos? (Selecione um ou mais)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-4">
                 <div className="space-y-3">
                   <Label>Qual o seu foco?</Label>
-                  <RadioGroup value={formData.objetivo} onValueChange={v => setFormData({...formData, objetivo: v})}>
-                    <div className="flex items-center space-x-2 border p-3 rounded-lg border-border/50">
-                      <RadioGroupItem value="hipertrofia" id="obj-1" />
-                      <Label htmlFor="obj-1" className="flex-1 cursor-pointer font-medium">Hipertrofia (Ganho de Massa)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 border p-3 rounded-lg border-border/50">
-                      <RadioGroupItem value="emagrecimento" id="obj-2" />
-                      <Label htmlFor="obj-2" className="flex-1 cursor-pointer font-medium">Emagrecimento (Perda de Gordura)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 border p-3 rounded-lg border-border/50">
-                      <RadioGroupItem value="forca" id="obj-3" />
-                      <Label htmlFor="obj-3" className="flex-1 cursor-pointer font-medium">Força Absoluta</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 border p-3 rounded-lg border-border/50">
-                      <RadioGroupItem value="resistencia" id="obj-4" />
-                      <Label htmlFor="obj-4" className="flex-1 cursor-pointer font-medium">Resistência e Condicionamento</Label>
-                    </div>
-                  </RadioGroup>
+                  <div className="space-y-2">
+                    {[
+                      { id: "hipertrofia", label: "Hipertrofia (Ganho de Massa)" },
+                      { id: "emagrecimento", label: "Emagrecimento (Perda de Gordura)" },
+                      { id: "forca", label: "Força Absoluta" },
+                      { id: "resistencia", label: "Resistência e Condicionamento" }
+                    ].map(obj => (
+                      <label key={obj.id} className="flex items-center space-x-3 border p-3 rounded-lg border-border/50 cursor-pointer hover:bg-primary/5 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 text-primary bg-background border-primary/50 rounded focus:ring-primary"
+                          checked={formData.objetivos.includes(obj.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, objetivos: [...formData.objetivos, obj.id] });
+                            } else {
+                              setFormData({ ...formData, objetivos: formData.objetivos.filter(o => o !== obj.id) });
+                            }
+                          }}
+                        />
+                        <span className="font-medium flex-1">{obj.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-3">
                   <Label>Qual o seu nível de experiência?</Label>
@@ -192,8 +216,89 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {/* PASSO 3: ROTINA */}
+          {/* PASSO 3: MEDIDAS CORPORAIS */}
           {step === 3 && (
+            <>
+              <CardHeader className="text-center pb-2">
+                <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                  <Activity className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Suas Medidas</CardTitle>
+                <CardDescription>Para acompanharmos sua evolução detalhadamente (Opcional).</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Braço (cm)</Label>
+                    <Input type="number" placeholder="Ex: 35" value={formData.medidas_braco} onChange={e => setFormData({...formData, medidas_braco: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Peito/Busto (cm)</Label>
+                    <Input type="number" placeholder="Ex: 100" value={formData.medidas_peito} onChange={e => setFormData({...formData, medidas_peito: e.target.value})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Cintura (cm)</Label>
+                    <Input type="number" placeholder="Ex: 80" value={formData.medidas_cintura} onChange={e => setFormData({...formData, medidas_cintura: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Quadril (cm)</Label>
+                    <Input type="number" placeholder="Ex: 105" value={formData.medidas_quadril} onChange={e => setFormData({...formData, medidas_quadril: e.target.value})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Coxa (cm)</Label>
+                    <Input type="number" placeholder="Ex: 60" value={formData.medidas_coxa} onChange={e => setFormData({...formData, medidas_coxa: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bumbum (cm)</Label>
+                    <Input type="number" placeholder="Ex: 110" value={formData.medidas_bumbum} onChange={e => setFormData({...formData, medidas_bumbum: e.target.value})} />
+                  </div>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {/* PASSO 4: DIETA E HÁBITOS */}
+          {step === 4 && (
+            <>
+              <CardHeader className="text-center pb-2">
+                <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                  <Activity className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Alimentação</CardTitle>
+                <CardDescription>O que você come dita 70% dos seus resultados.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-4">
+                <div className="space-y-2">
+                  <Label>Quantas refeições você faz por dia em média?</Label>
+                  <Input type="number" placeholder="Ex: 4" value={formData.dieta_refeicoes} onChange={e => setFormData({...formData, dieta_refeicoes: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Quantos litros de água você bebe por dia?</Label>
+                  <Input type="number" step="0.1" placeholder="Ex: 2.5" value={formData.dieta_agua} onChange={e => setFormData({...formData, dieta_agua: e.target.value})} />
+                </div>
+                <div className="space-y-3">
+                  <Label>Consome muito doce, frituras ou açúcar?</Label>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    value={formData.dieta_doces_frituras}
+                    onChange={e => setFormData({...formData, dieta_doces_frituras: e.target.value})}
+                  >
+                    <option value="" disabled>Selecione...</option>
+                    <option value="nunca">Quase nunca, sou bem focado(a)</option>
+                    <option value="as_vezes">Às vezes (finais de semana)</option>
+                    <option value="frequentemente">Frequentemente (quase todo dia)</option>
+                  </select>
+                </div>
+              </CardContent>
+            </>
+          )}
+
+          {/* PASSO 5: ROTINA */}
+          {step === 5 && (
             <>
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
@@ -236,8 +341,8 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {/* PASSO 4: SAÚDE E GERAR */}
-          {step === 4 && (
+          {/* PASSO 6: SAÚDE E GERAR */}
+          {step === 6 && (
             <>
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
@@ -278,7 +383,7 @@ export default function OnboardingPage() {
               </Button>
             ) : <div className="w-32"></div>}
 
-            {step < 4 ? (
+            {step < 6 ? (
               <Button onClick={handleNext} className="flex-1 font-bold">
                 Próximo <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

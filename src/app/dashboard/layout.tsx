@@ -4,22 +4,26 @@ import { Dumbbell, User, LogOut, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("gym_username");
-    if (!savedUser) {
-      router.push("/");
-    } else {
-      setUsername(savedUser);
-    }
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/");
+      } else {
+        setUserEmail(session.user.email || "Usuário");
+      }
+    };
+    checkUser();
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("gym_username");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push("/");
   };
 
@@ -40,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="w-4 h-4" />
-              <span className="font-medium">{username}</span>
+              <span className="font-medium max-w-[150px] truncate">{userEmail}</span>
             </div>
             <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors ml-2" title="Sair da conta">
               <LogOut className="w-5 h-5" />

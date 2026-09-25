@@ -20,12 +20,25 @@ export async function POST(req: Request) {
     - Idade: ${formData.idade}
     - Gênero: ${formData.genero}
     - Peso: ${formData.peso}kg, Altura: ${formData.altura}cm
-    - Objetivo: ${formData.objetivo}
+    - Objetivos: ${formData.objetivos ? formData.objetivos.join(", ") : 'Não informado'}
     - Nível: ${formData.experiencia}
     - Dias: ${formData.diasPorSemana}
     - Tempo: ${formData.tempoPorTreino} min
     - Lesões: ${formData.lesoes || 'Nenhuma'}
     - Obs: ${formData.observacoes || 'Nenhuma'}
+    
+    Medidas Corporais:
+    - Braço: ${formData.medidas_braco ? formData.medidas_braco + 'cm' : 'N/A'}
+    - Peito/Busto: ${formData.medidas_peito ? formData.medidas_peito + 'cm' : 'N/A'}
+    - Cintura: ${formData.medidas_cintura ? formData.medidas_cintura + 'cm' : 'N/A'}
+    - Quadril: ${formData.medidas_quadril ? formData.medidas_quadril + 'cm' : 'N/A'}
+    - Coxa: ${formData.medidas_coxa ? formData.medidas_coxa + 'cm' : 'N/A'}
+    - Bumbum: ${formData.medidas_bumbum ? formData.medidas_bumbum + 'cm' : 'N/A'}
+
+    Dieta e Hábitos:
+    - Refeições por dia: ${formData.dieta_refeicoes || 'N/A'}
+    - Litros de água por dia: ${formData.dieta_agua || 'N/A'}
+    - Consumo de doces/frituras/açúcar: ${formData.dieta_doces_frituras || 'N/A'}
 
     CATÁLOGO DE EXERCÍCIOS:
     ${catalogString}

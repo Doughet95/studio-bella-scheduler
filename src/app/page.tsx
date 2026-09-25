@@ -2,39 +2,64 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dumbbell, ArrowRight } from "lucide-react";
+import { Dumbbell, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Label } from "@/components/ui/label";
 
 export default function Home() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("gym_username");
-    if (savedUser) {
-      router.push("/dashboard");
-    } else {
-      setIsLoading(false);
-    }
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push("/dashboard");
+      } else {
+        setIsLoading(false);
+      }
+    };
+    checkUser();
   }, [router]);
 
-  const handleStart = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) return;
+    if (!email.trim() || !password.trim()) return;
     
-    localStorage.setItem("gym_username", username.trim());
-    // Se for o primeiro acesso, vamos para o onboarding (anamnese)
-    router.push("/onboarding");
+    setIsSubmitting(true);
+    setErrorMsg("");
+    
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        router.push("/dashboard");
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        // Assume success, usually goes to dashboard or asks for email verification depending on Supabase settings.
+        // We'll redirect to onboarding for new users.
+        router.push("/onboarding");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Ocorreu um erro. Verifique seus dados.");
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) return null; // Previne piscar a tela de login se já estiver logado
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
-      <div className="bg-card/50 p-8 rounded-2xl border border-border/50 max-w-md w-full shadow-2xl shadow-primary/10">
-        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+      <div className="bg-card/50 backdrop-blur-md p-8 rounded-2xl border border-white/10 max-w-md w-full shadow-2xl shadow-primary/20">
+        <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-6">
           <Dumbbell className="w-8 h-8 text-primary" />
         </div>
         
@@ -42,24 +67,60 @@ export default function Home() {
           Gym Tracker <span className="text-primary">AI</span>
         </h1>
         
-        <p className="text-muted-foreground mb-8 text-lg">
-          Seu personal trainer inteligente. Digite seu nome para continuar.
+        <p className="text-muted-foreground mb-6 text-sm">
+          {isLogin ? "Faça login para acessar seus treinos." : "Crie sua conta para começar."}
         </p>
 
-        <form onSubmit={handleStart} className="flex flex-col gap-4">
-          <Input 
-            type="text" 
-            placeholder="Seu nome (ex: Douglas)" 
-            className="h-14 text-lg bg-background border-primary/20 focus-visible:ring-primary"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-          <Button type="submit" size="lg" className="w-full font-bold text-lg h-14 shadow-lg shadow-primary/20">
-            Entrar / Começar
-            <ArrowRight className="w-5 h-5 ml-2" />
+        {errorMsg && (
+          <div className="mb-4 p-3 rounded bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleAuth} className="flex flex-col gap-4 text-left">
+          <div className="space-y-1">
+            <Label htmlFor="email">E-mail</Label>
+            <Input 
+              id="email"
+              type="email" 
+              placeholder="seu@email.com" 
+              className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="password">Senha</Label>
+            <Input 
+              id="password"
+              type="password" 
+              placeholder="••••••••" 
+              className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" size="lg" className="w-full font-bold text-lg h-12 shadow-lg shadow-primary/20 mt-2 bg-primary/90 hover:bg-primary" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+              <>
+                {isLogin ? "Entrar" : "Criar Conta"}
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </>
+            )}
           </Button>
         </form>
+
+        <div className="mt-6">
+          <button 
+            type="button" 
+            onClick={() => { setIsLogin(!isLogin); setErrorMsg(""); }} 
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            {isLogin ? "Não tem uma conta? Cadastre-se grátis." : "Já tem conta? Faça login."}
+          </button>
+        </div>
       </div>
     </main>
   );
