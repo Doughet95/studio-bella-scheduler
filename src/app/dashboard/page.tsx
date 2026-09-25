@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { PlusCircle, PlayCircle, Loader2, Trash2, Edit } from "lucide-react"
+import { PlusCircle, PlayCircle, Loader2, Trash2, Edit, Eye } from "lucide-react"
 
 type Workout = { 
   id: string, 
@@ -115,9 +115,15 @@ export default function DashboardPage() {
                   </span>
                 </CardDescription>
               </CardHeader>
-              <CardContent className="relative z-10">
+              <CardContent className="relative z-10 flex flex-col gap-2">
+                <Link href={`/dashboard/view-workout/${workout.id}`}>
+                  <Button variant="secondary" className="w-full font-medium transition-all duration-300 group-hover:scale-[1.02] active:scale-95 text-foreground hover:text-primary">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Exercícios
+                  </Button>
+                </Link>
                 <Link href={`/dashboard/workout/${workout.id}`}>
-                  <Button className="w-full font-bold bg-primary/90 hover:bg-primary text-primary-foreground transition-all duration-300 group-hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/25">
+                  <Button className="w-full font-bold bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 group-hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/25">
                     <PlayCircle className="w-5 h-5 mr-2" />
                     Iniciar Treino
                   </Button>
