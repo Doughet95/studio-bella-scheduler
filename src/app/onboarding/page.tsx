@@ -82,6 +82,11 @@ export default function OnboardingPage() {
           .select()
           .single()
 
+        if (workoutError) {
+          console.error(workoutError);
+          alert("Erro ao salvar no banco: " + workoutError.message + ". Você rodou o script SQL?");
+        }
+
         if (!workoutError && workout && w.exercises) {
           // 3. Vincular exercícios daquela ficha
           const exercisesToInsert = w.exercises.map((ex: any, idx: number) => ({
