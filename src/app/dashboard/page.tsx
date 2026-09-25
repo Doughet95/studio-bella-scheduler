@@ -50,8 +50,8 @@ export default function DashboardPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Minhas Fichas</h1>
-          <p className="text-muted-foreground mt-1">Escolha um treino para iniciar hoje.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Minhas Fichas</h1>
+          <p className="text-gray-300 mt-1 font-medium">Escolha um treino para iniciar hoje.</p>
         </div>
         <Link href="/dashboard/create-workout">
           <Button className="font-bold shadow-lg shadow-primary/20">
@@ -73,7 +73,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <CardTitle className="text-xl">Nenhuma ficha encontrada</CardTitle>
-              <CardDescription className="mt-2">Você ainda não tem treinos cadastrados.</CardDescription>
+              <CardDescription className="mt-2 text-gray-300">Você ainda não tem treinos cadastrados.</CardDescription>
             </div>
             <Link href="/dashboard/create-workout">
               <Button variant="outline" className="mt-4">Criar meu primeiro treino</Button>
@@ -89,24 +89,24 @@ export default function DashboardPage() {
               {/* Subtle gradient glow behind the card */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
               
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-50">
+              <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 z-50 bg-background/50 md:bg-transparent rounded-lg backdrop-blur-sm md:backdrop-blur-none p-1">
                 <Link href={`/dashboard/edit-workout/${workout.id}`}>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/20">
+                  <Button variant="ghost" size="icon" className="text-gray-200 hover:text-primary hover:bg-primary/20">
                     <Edit className="w-4 h-4" />
                   </Button>
                 </Link>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/20"
+                  className="text-gray-200 hover:text-destructive hover:bg-destructive/20"
                   onClick={() => deleteWorkout(workout.id, workout.name)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
               <CardHeader className="pb-3 pr-20 relative z-10">
-                <CardTitle className="text-xl truncate text-foreground group-hover:text-primary transition-colors">{workout.name}</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl truncate text-white group-hover:text-primary transition-colors">{workout.name}</CardTitle>
+                <CardDescription className="text-gray-300 font-medium">
                   {workout.days_of_week && workout.days_of_week.length > 0 
                     ? `Dias: ${workout.days_of_week.join(', ')}` 
                     : `Criado em ${new Date(workout.created_at).toLocaleDateString('pt-BR')}`}
