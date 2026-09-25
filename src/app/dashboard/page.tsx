@@ -87,9 +87,9 @@ export default function DashboardPage() {
             return (
             <Card key={workout.id} className="bg-card/20 backdrop-blur-xl border-white/10 hover:border-primary/50 shadow-2xl hover:shadow-primary/20 transition-all duration-300 group relative overflow-hidden">
               {/* Subtle gradient glow behind the card */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
               
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-50">
                 <Link href={`/dashboard/edit-workout/${workout.id}`}>
                   <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/20">
                     <Edit className="w-4 h-4" />
