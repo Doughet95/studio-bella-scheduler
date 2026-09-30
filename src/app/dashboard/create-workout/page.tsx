@@ -77,23 +77,31 @@ export default function CreateWorkoutPage() {
     })
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+    const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name || selectedExercises.length === 0) return
     setSaving(true)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      alert("Você precisa estar logado para salvar o treino.")
+      setSaving(false)
+      return
+    }
 
     // 1. Criar a ficha de treino
     const { data: workout, error: workoutError } = await supabase
       .from('workouts')
       .insert([{ 
         name,
-        days_of_week: selectedDays.length > 0 ? `{${selectedDays.join(',')}}` : null
+        days_of_week: selectedDays.length > 0 ? `{${selectedDays.join(',')}}` : null,
+        user_id: session.user.id
       }])
       .select()
       .single()
 
     if (workoutError || !workout) {
-      alert("Erro ao criar treino.")
+      alert("Erro ao criar treino: " + (workoutError?.message || "Desconhecido"))
       setSaving(false)
       return
     }
