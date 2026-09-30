@@ -1,14 +1,16 @@
 "use client"
 
-import { Dumbbell, User, LogOut, Sparkles } from "lucide-react";
+import { Dumbbell, User, LogOut, Sparkles, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState("");
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -42,13 +44,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 Nova Ficha com IA
               </button>
             </Link>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground hidden md:flex">
               <User className="w-4 h-4" />
               <span className="font-medium max-w-[150px] truncate">{userEmail}</span>
             </div>
-            <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors ml-2" title="Sair da conta">
-              <LogOut className="w-5 h-5" />
-            </button>
+            <div className="flex items-center border-l border-white/10 pl-4 gap-1">
+              <button onClick={() => setIsChangePasswordOpen(true)} className="text-muted-foreground hover:text-primary transition-colors p-2 rounded-full hover:bg-primary/10" title="Trocar Senha">
+                <KeyRound className="w-5 h-5" />
+              </button>
+              <button onClick={handleLogout} className="text-muted-foreground hover:text-destructive transition-colors p-2 rounded-full hover:bg-destructive/10" title="Sair da conta">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -56,6 +63,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 py-8">
         {children}
       </main>
+
+      <ChangePasswordModal 
+        isOpen={isChangePasswordOpen} 
+        onClose={() => setIsChangePasswordOpen(false)} 
+      />
     </div>
   );
 }

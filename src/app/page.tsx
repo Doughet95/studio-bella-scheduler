@@ -13,6 +13,8 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -54,8 +56,33 @@ export default function Home() {
         // Assume success and session exists
         router.push("/onboarding");
       }
+      }
     } catch (err: any) {
       setErrorMsg(err.message || "Ocorreu um erro. Verifique seus dados.");
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setErrorMsg("Por favor, digite seu e-mail para recuperar a senha.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setResetSent(false);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Erro ao tentar enviar o e-mail de recuperação.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -74,7 +101,11 @@ export default function Home() {
         </h1>
         
         <p className="text-muted-foreground mb-6 text-sm">
-          {isLogin ? "Faça login para acessar seus treinos." : "Crie sua conta para começar."}
+          {isForgotPassword 
+            ? "Enviaremos um link seguro para você recadastrar sua senha."
+            : isLogin 
+              ? "Faça login para acessar seus treinos." 
+              : "Crie sua conta para começar."}
         </p>
 
         {errorMsg && (
@@ -83,49 +114,96 @@ export default function Home() {
           </div>
         )}
 
-        <form onSubmit={handleAuth} className="flex flex-col gap-4 text-left">
-          <div className="space-y-1">
-            <Label htmlFor="email">E-mail</Label>
-            <Input 
-              id="email"
-              type="email" 
-              placeholder="seu@email.com" 
-              className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+        {resetSent && (
+          <div className="mb-4 p-3 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm">
+            Pronto! Verifique sua caixa de e-mail (e a pasta de Spam) para redefinir sua senha.
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="password">Senha</Label>
-            <Input 
-              id="password"
-              type="password" 
-              placeholder="••••••••" 
-              className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" size="lg" className="w-full font-bold text-lg h-12 shadow-lg shadow-primary/20 mt-2 bg-primary/90 hover:bg-primary" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-              <>
-                {isLogin ? "Entrar" : "Criar Conta"}
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </>
-            )}
-          </Button>
-        </form>
+        )}
 
-        <div className="mt-6">
-          <button 
-            type="button" 
-            onClick={() => { setIsLogin(!isLogin); setErrorMsg(""); }} 
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            {isLogin ? "Não tem uma conta? Cadastre-se grátis." : "Já tem conta? Faça login."}
-          </button>
+        {isForgotPassword ? (
+          <form onSubmit={handleForgotPassword} className="flex flex-col gap-4 text-left">
+            <div className="space-y-1">
+              <Label htmlFor="email">E-mail cadastrado</Label>
+              <Input 
+                id="email"
+                type="email" 
+                placeholder="seu@email.com" 
+                className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" size="lg" className="w-full font-bold text-lg h-12 shadow-lg shadow-primary/20 mt-2 bg-primary/90 hover:bg-primary" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar link de recuperação"}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleAuth} className="flex flex-col gap-4 text-left">
+            <div className="space-y-1">
+              <Label htmlFor="email">E-mail</Label>
+              <Input 
+                id="email"
+                type="email" 
+                placeholder="seu@email.com" 
+                className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="password">Senha</Label>
+                {isLogin && (
+                  <button 
+                    type="button" 
+                    onClick={() => { setIsForgotPassword(true); setErrorMsg(""); setResetSent(false); }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Esqueceu a senha?
+                  </button>
+                )}
+              </div>
+              <Input 
+                id="password"
+                type="password" 
+                placeholder="••••••••" 
+                className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" size="lg" className="w-full font-bold text-lg h-12 shadow-lg shadow-primary/20 mt-2 bg-primary/90 hover:bg-primary" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <>
+                  {isLogin ? "Entrar" : "Criar Conta"}
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              )}
+            </Button>
+          </form>
+        )}
+
+        <div className="mt-6 flex flex-col items-center gap-2">
+          {isForgotPassword ? (
+            <button 
+              type="button" 
+              onClick={() => { setIsForgotPassword(false); setErrorMsg(""); setResetSent(false); }} 
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              Voltar para o login
+            </button>
+          ) : (
+            <button 
+              type="button" 
+              onClick={() => { setIsLogin(!isLogin); setErrorMsg(""); }} 
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              {isLogin ? "Não tem uma conta? Cadastre-se grátis." : "Já tem conta? Faça login."}
+            </button>
+          )}
         </div>
       </div>
     </main>
