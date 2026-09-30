@@ -56,7 +56,6 @@ export default function Home() {
         // Assume success and session exists
         router.push("/onboarding");
       }
-      }
     } catch (err: any) {
       setErrorMsg(err.message || "Ocorreu um erro. Verifique seus dados.");
       setIsSubmitting(false);
