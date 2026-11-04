@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { PlusCircle, PlayCircle, Loader2, Trash2, Edit, Eye } from "lucide-react"
+import { PlusCircle, PlayCircle, Loader2, Trash2, Edit, Eye, History } from "lucide-react"
 
 type Workout = { 
   id: string, 
   name: string, 
   created_at: string, 
   days_of_week: string[],
-  workout_history?: [{ count: number }]
+  workout_history?: [{ count: number }],
+  workout_sessions?: [{ count: number }]
 }
 
 export default function DashboardPage() {
@@ -22,7 +23,7 @@ export default function DashboardPage() {
   const loadWorkouts = () => {
     setLoading(true)
     supabase.from('workouts')
-      .select('*, workout_history(count)')
+      .select('*, workout_history(count), workout_sessions(count)')
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (error) console.error(error)
@@ -83,13 +84,15 @@ export default function DashboardPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {workouts.map(workout => {
-            const checkins = workout.workout_history?.[0]?.count || 0;
+            const historyCount = workout.workout_history?.[0]?.count || 0
+            const sessionsCount = workout.workout_sessions?.[0]?.count || 0
+            const checkins = Math.max(historyCount, sessionsCount)
             return (
             <Card key={workout.id} className="bg-card/20 backdrop-blur-xl border-white/10 hover:border-primary/50 shadow-2xl hover:shadow-primary/20 transition-all duration-300 group relative overflow-hidden">
               {/* Subtle gradient glow behind the card */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
               
-              <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 z-50 bg-background/50 md:bg-transparent rounded-lg backdrop-blur-sm md:backdrop-blur-none p-1">
+              <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 z-30 bg-background/50 md:bg-transparent rounded-lg backdrop-blur-sm md:backdrop-blur-none p-1">
                 <Link href={`/dashboard/edit-workout/${workout.id}`}>
                   <Button variant="ghost" size="icon" className="text-gray-200 hover:text-primary hover:bg-primary/20">
                     <Edit className="w-4 h-4" />
@@ -110,18 +113,28 @@ export default function DashboardPage() {
                   {workout.days_of_week && workout.days_of_week.length > 0 
                     ? `Dias: ${workout.days_of_week.join(', ')}` 
                     : `Criado em ${new Date(workout.created_at).toLocaleDateString('pt-BR')}`}
-                  <span className="block mt-2 font-medium text-primary bg-primary/10 border border-primary/20 w-fit px-2.5 py-1 rounded-md text-xs shadow-sm">
-                    ✅ Feito {checkins} vez{checkins !== 1 ? 'es' : ''}
-                  </span>
+                  <Link href={`/dashboard/history/${workout.id}`} className="block mt-2 w-fit">
+                    <span className="inline-flex items-center gap-1 font-medium text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 px-2.5 py-1 rounded-md text-xs shadow-sm transition-colors">
+                      ✅ Feito {checkins} vez{checkins !== 1 ? 'es' : ''} • Ver evolução
+                    </span>
+                  </Link>
                 </CardDescription>
               </CardHeader>
               <CardContent className="relative z-10 flex flex-col gap-2">
-                <Link href={`/dashboard/view-workout/${workout.id}`}>
-                  <Button variant="secondary" className="w-full font-medium transition-all duration-300 group-hover:scale-[1.02] active:scale-95 text-foreground hover:text-primary">
-                    <Eye className="w-4 h-4 mr-2" />
-                    Ver Exercícios
-                  </Button>
-                </Link>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link href={`/dashboard/view-workout/${workout.id}`}>
+                    <Button variant="secondary" className="w-full font-medium transition-all duration-300 text-foreground hover:text-primary px-2 text-xs sm:text-sm">
+                      <Eye className="w-4 h-4 mr-1.5 shrink-0" />
+                      Exercícios
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/history/${workout.id}`}>
+                    <Button variant="outline" className="w-full font-medium border-white/15 bg-white/5 hover:bg-white/10 text-white px-2 text-xs sm:text-sm">
+                      <History className="w-4 h-4 mr-1.5 shrink-0 text-primary" />
+                      Histórico
+                    </Button>
+                  </Link>
+                </div>
                 <Link href={`/dashboard/workout/${workout.id}`}>
                   <Button className="w-full font-bold bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 group-hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/25">
                     <PlayCircle className="w-5 h-5 mr-2" />
