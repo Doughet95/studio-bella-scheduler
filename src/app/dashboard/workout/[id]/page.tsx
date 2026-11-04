@@ -18,7 +18,8 @@ import {
   Plus,
   Minus,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Clock
 } from "lucide-react"
 import Link from "next/link"
 
@@ -56,11 +57,45 @@ export default function WorkoutSessionPage() {
   const [aiTips, setAiTips] = useState<Record<string, string>>({})
   const [loadingAi, setLoadingAi] = useState<Record<string, boolean>>({})
 
-  // Estados do Cronômetro Sobreposto
+  // Cronômetro do Tempo Total de Treino
+  const [workoutStartTimestamp, setWorkoutStartTimestamp] = useState<number | null>(null)
+  const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState<number>(0)
+  const [isWorkoutTimerRunning, setIsWorkoutTimerRunning] = useState<boolean>(true)
+
+  // Estados do Cronômetro de Descanso Sobreposto
   const [restTimeLeft, setRestTimeLeft] = useState<number | null>(null)
   const [restTotalTime, setRestTotalTime] = useState<number>(60)
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false)
   const [activeTimerLabel, setActiveTimerLabel] = useState<string>("")
+
+  // Inicializa o cronômetro total assim que entra na tela de Iniciar Treino
+  useEffect(() => {
+    if (!id) return
+    const storageKey = `workout_start_time_${id}`
+    const savedStart = typeof window !== "undefined" ? sessionStorage.getItem(storageKey) : null
+    let startTs = Date.now()
+
+    if (savedStart && !isNaN(Number(savedStart))) {
+      startTs = Number(savedStart)
+    } else if (typeof window !== "undefined") {
+      sessionStorage.setItem(storageKey, String(startTs))
+    }
+
+    setWorkoutStartTimestamp(startTs)
+    setWorkoutElapsedSeconds(Math.max(0, Math.floor((Date.now() - startTs) / 1000)))
+    setIsWorkoutTimerRunning(true)
+  }, [id])
+
+  // Atualiza o cronômetro de tempo total de treino a cada segundo (usando Date.now() para não atrasar se a tela do celular apagar)
+  useEffect(() => {
+    if (!isWorkoutTimerRunning || workoutStartTimestamp === null) return
+
+    const interval = setInterval(() => {
+      setWorkoutElapsedSeconds(Math.max(0, Math.floor((Date.now() - workoutStartTimestamp) / 1000)))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isWorkoutTimerRunning, workoutStartTimestamp])
 
   useEffect(() => {
     if (restTimeLeft === null || restTimeLeft <= 0) {
@@ -135,7 +170,6 @@ export default function WorkoutSessionPage() {
         .limit(5)
 
       if (prevSessions && prevSessions.length > 0) {
-        // Pega a sessão mais recente que tenha logs preenchidos
         const latestWithLogs = prevSessions.find((s: any) => s.exercise_logs && s.exercise_logs.length > 0)
         if (latestWithLogs) {
           setLastSessionDate(
@@ -201,25 +235,40 @@ export default function WorkoutSessionPage() {
   }
 
   const finishWorkout = async () => {
+    // Para o cronômetro imediatamente ao clicar em Finalizar Treino
+    setIsWorkoutTimerRunning(false)
     setSaving(true)
+
+    const endTimestamp = Date.now()
+    const startTimestamp = workoutStartTimestamp ?? endTimestamp - workoutElapsedSeconds * 1000
+    const finalDurationSeconds = Math.max(1, Math.floor((endTimestamp - startTimestamp) / 1000))
+    const durationMinutes = Math.max(1, Math.round(finalDurationSeconds / 60))
 
     const { data: authData } = await supabase.auth.getSession()
     const userId = authData?.session?.user?.id || null
 
-    // 1. Criar a sessão de treino
+    // 1. Criar a sessão de treino com start_time real do início e end_time de agora
     const { data: session, error: sessionError } = await supabase
       .from("workout_sessions")
-      .insert([{ workout_id: id, user_id: userId }])
+      .insert([
+        {
+          workout_id: id,
+          user_id: userId,
+          start_time: new Date(startTimestamp).toISOString(),
+          end_time: new Date(endTimestamp).toISOString()
+        }
+      ])
       .select()
       .single()
 
     if (!session || sessionError) {
       alert("Erro ao salvar a sessão de treino.")
+      setIsWorkoutTimerRunning(true)
       setSaving(false)
       return
     }
 
-    // 2. Salvar todos os logs preenchidos (mesmo se preencheu só reps ou peso 0)
+    // 2. Salvar todos os logs preenchidos
     const logsToInsert: any[] = []
 
     Object.keys(logs).forEach(exerciseId => {
@@ -240,22 +289,22 @@ export default function WorkoutSessionPage() {
       await supabase.from("exercise_logs").insert(logsToInsert)
     }
 
-    // Marca fim do treino
-    await supabase
-      .from("workout_sessions")
-      .update({ end_time: new Date().toISOString() })
-      .eq("id", session.id)
-
-    // Registra o check-in no histórico (com user_id para respeitar RLS)
+    // Registra o check-in no histórico com a duração em minutos
     await supabase.from("workout_history").insert([
       {
         workout_id: id,
+        duration_minutes: durationMinutes,
         ...(userId ? { user_id: userId } : {})
       }
     ])
 
-    // Redireciona diretamente para a tela de Histórico daquele treino para visualizar a evolução!
-    router.push(`/dashboard/history/${id}?justFinished=true`)
+    // Limpa o timestamp temporário da sessão
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(`workout_start_time_${id}`)
+    }
+
+    // Redireciona diretamente para a tela de Histórico enviando o tempo total gasto
+    router.push(`/dashboard/history/${id}?justFinished=true&duration=${finalDurationSeconds}`)
   }
 
   if (loading) {
@@ -272,13 +321,25 @@ export default function WorkoutSessionPage() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   }
 
+  const formatTotalDuration = (sec: number) => {
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    if (h > 0) {
+      return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s
+        .toString()
+        .padStart(2, "0")}`
+    }
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  }
+
   const progressPercent =
     restTimeLeft !== null && restTotalTime > 0
       ? Math.min(100, Math.max(0, (restTimeLeft / restTotalTime) * 100))
       : 0
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-32">
+    <div className="max-w-2xl mx-auto space-y-6 pb-40">
       {/* Cabeçalho com botão de voltar e acesso rápido ao Histórico */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
@@ -301,7 +362,27 @@ export default function WorkoutSessionPage() {
         </Link>
       </div>
 
-      {/* Pílula flutuante no topo quando o cronômetro está rodando minimizado */}
+      {/* Painel em Destaque do Cronômetro de Tempo Total do Treino */}
+      <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-primary/15 border border-primary/40 backdrop-blur-xl shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-primary/25 text-primary">
+            <Clock className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+              Tempo Total de Treino
+            </p>
+            <p className="text-xs text-gray-400">
+              Contando desde o início • Para ao finalizar
+            </p>
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black font-mono tracking-wider text-white bg-background/60 px-3.5 py-1.5 rounded-xl border border-white/10">
+          {formatTotalDuration(workoutElapsedSeconds)}
+        </div>
+      </div>
+
+      {/* Pílula flutuante no topo quando o cronômetro de descanso está rodando minimizado */}
       {restTimeLeft !== null && !isTimerModalOpen && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[90] w-[92%] max-w-sm">
           <div
@@ -613,11 +694,20 @@ export default function WorkoutSessionPage() {
         })}
       </div>
 
-      {/* Barra fixa inferior com z-40 (acima dos cards) */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/85 backdrop-blur-md border-t border-border z-40 flex flex-col items-center gap-3">
+      {/* Barra fixa inferior com o cronômetro total em tempo real + botão Finalizar Treino */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-md border-t border-border z-40 flex flex-col items-center gap-2.5">
+        <div className="w-full max-w-2xl flex items-center justify-between px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs sm:text-sm">
+          <span className="flex items-center gap-1.5 text-gray-300 font-medium">
+            <Clock className="w-4 h-4 text-primary animate-pulse" />
+            Tempo de treino em andamento:
+          </span>
+          <span className="font-mono font-extrabold text-white text-sm sm:text-base">
+            {formatTotalDuration(workoutElapsedSeconds)}
+          </span>
+        </div>
         <Button
           size="lg"
-          className="w-full max-w-2xl font-bold h-14 text-lg shadow-xl shadow-primary/20"
+          className="w-full max-w-2xl font-bold h-12 sm:h-14 text-base sm:text-lg shadow-xl shadow-primary/20"
           onClick={finishWorkout}
           disabled={saving}
         >
@@ -626,7 +716,7 @@ export default function WorkoutSessionPage() {
           ) : (
             <CheckCircle2 className="w-6 h-6 mr-2" />
           )}
-          Finalizar Treino
+          Finalizar Treino ({formatTotalDuration(workoutElapsedSeconds)})
         </Button>
       </div>
     </div>

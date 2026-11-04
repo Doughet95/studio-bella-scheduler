@@ -10,11 +10,11 @@ import {
   ArrowLeft,
   Calendar,
   TrendingUp,
-  Trophy,
   Dumbbell,
   CheckCircle2,
   Trash2,
-  PlayCircle
+  PlayCircle,
+  Clock
 } from "lucide-react"
 import Link from "next/link"
 
@@ -44,10 +44,34 @@ export default function WorkoutHistoryPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const justFinished = searchParams.get("justFinished") === "true"
+  const finishedDurationParam = searchParams.get("duration")
 
   const [workoutName, setWorkoutName] = useState("")
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  const formatDurationHuman = (totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600)
+    const m = Math.floor((totalSeconds % 3600) / 60)
+    const s = totalSeconds % 60
+    if (h > 0) {
+      return `${h}h ${m}min ${s}s`
+    }
+    if (m > 0) {
+      return `${m}min ${s}s`
+    }
+    return `${s}s`
+  }
+
+  const getSessionDurationSeconds = (session: SessionItem) => {
+    if (!session.start_time || !session.end_time) return null
+    const diffSec = Math.round(
+      (new Date(session.end_time).getTime() - new Date(session.start_time).getTime()) / 1000
+    )
+    // Ignora sessões antigas onde start_time e end_time foram gravados no mesmo segundo (< 3s)
+    if (diffSec < 3) return null
+    return diffSec
+  }
 
   const loadHistory = async () => {
     setLoading(true)
@@ -70,7 +94,6 @@ export default function WorkoutHistoryPage() {
     }
 
     if (sData) {
-      // Filtra sessões que possuem logs ou foram finalizadas
       setSessions(sData as unknown as SessionItem[])
     }
     setLoading(false)
@@ -87,7 +110,6 @@ export default function WorkoutHistoryPage() {
     loadHistory()
   }
 
-  // Agrupa os logs de uma sessão por exercício mantendo a ordem
   const groupLogsByExercise = (logs: ExerciseLogItem[]) => {
     const map = new Map<
       string,
@@ -130,7 +152,6 @@ export default function WorkoutHistoryPage() {
     return Array.from(map.values())
   }
 
-  // Compara um exercício da sessão atual (index) com a sessão anterior (index + 1)
   const getEvolutionBadge = (sessionIndex: number, exerciseId: string, currentMaxWeight: number, currentVolume: number) => {
     if (sessionIndex >= sessions.length - 1) return null
     const previousSession = sessions[sessionIndex + 1]
@@ -190,9 +211,17 @@ export default function WorkoutHistoryPage() {
         <div className="p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 backdrop-blur-md flex items-center gap-3 text-emerald-200 shadow-lg">
           <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
           <div className="flex-1">
-            <p className="font-bold text-white">Treino finalizado e salvo com sucesso! 💪</p>
-            <p className="text-xs text-emerald-200/90">
-              Confira abaixo o histórico completo das suas séries, repetições e cargas de hoje.
+            <p className="font-bold text-white">
+              Treino finalizado e salvo com sucesso! 💪
+              {finishedDurationParam && !isNaN(Number(finishedDurationParam)) && (
+                <span className="ml-2 inline-flex items-center gap-1 text-xs font-bold bg-emerald-500/30 text-white px-2.5 py-0.5 rounded-full">
+                  <Clock className="w-3.5 h-3.5" />
+                  Tempo total: {formatDurationHuman(Number(finishedDurationParam))}
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-emerald-200/90 mt-0.5">
+              Confira abaixo o histórico completo das suas séries, repetições, cargas e tempo de treino.
             </p>
           </div>
         </div>
@@ -208,7 +237,7 @@ export default function WorkoutHistoryPage() {
               Histórico: {workoutName}
             </h1>
             <p className="text-gray-300 text-sm mt-0.5">
-              Acompanhe suas cargas, repetições e evolução a cada treino.
+              Acompanhe suas cargas, repetições, tempo de duração e evolução.
             </p>
           </div>
         </div>
@@ -257,6 +286,7 @@ export default function WorkoutHistoryPage() {
             const groupedExercises = groupLogsByExercise(session.exercise_logs)
             const totalSets = session.exercise_logs?.length || 0
             const totalSessionVolume = groupedExercises.reduce((acc, g) => acc + g.totalVolume, 0)
+            const durationSec = getSessionDurationSeconds(session)
 
             return (
               <Card
@@ -279,6 +309,12 @@ export default function WorkoutHistoryPage() {
                           {sIdx === 0 && (
                             <span className="text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
                               Mais Recente
+                            </span>
+                          )}
+                          {durationSec !== null && (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold bg-white/10 border border-white/15 text-emerald-300 px-2.5 py-0.5 rounded-full">
+                              <Clock className="w-3.5 h-3.5" />
+                              {formatDurationHuman(durationSec)}
                             </span>
                           )}
                         </div>
