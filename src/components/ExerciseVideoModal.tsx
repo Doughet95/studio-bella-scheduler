@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Loader2, PlayCircle, ExternalLink, X, RefreshCw } from "lucide-react"
 
@@ -11,10 +12,15 @@ type ExerciseVideoModalProps = {
 
 export function ExerciseVideoButton({ exerciseName, targetMuscle }: ExerciseVideoModalProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [videoIds, setVideoIds] = useState<string[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [searchUrl, setSearchUrl] = useState("")
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -73,118 +79,121 @@ export function ExerciseVideoButton({ exerciseName, targetMuscle }: ExerciseVide
         <span>Vídeo</span>
       </button>
 
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
-          onClick={() => setIsOpen(false)}
-        >
+      {mounted &&
+        isOpen &&
+        createPortal(
           <div
-            className="w-full max-w-lg rounded-2xl bg-zinc-900 border border-white/15 shadow-2xl overflow-hidden space-y-4 p-4 sm:p-5"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
+            onClick={() => setIsOpen(false)}
           >
-            {/* Cabeçalho do Modal */}
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-red-400 bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 rounded-full">
-                  <PlayCircle className="w-3.5 h-3.5" />
-                  Como Executar o Exercício
-                </span>
-                <h3 className="text-lg sm:text-xl font-bold text-white mt-1.5">{exerciseName}</h3>
-                {targetMuscle && (
-                  <p className="text-xs text-gray-400">Músculo alvo: {targetMuscle}</p>
-                )}
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-gray-400 hover:text-white rounded-full shrink-0"
-                onClick={() => setIsOpen(false)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-
-            {/* Player do YouTube */}
-            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/10 flex items-center justify-center">
-              {loading ? (
-                <div className="flex flex-col items-center gap-2 text-gray-300">
-                  <Loader2 className="w-8 h-8 animate-spin text-red-500" />
-                  <p className="text-xs font-medium">Buscando vídeo de execução no YouTube...</p>
+            <div
+              className="w-full max-w-lg rounded-2xl bg-zinc-950 border border-white/20 shadow-2xl overflow-hidden space-y-4 p-4 sm:p-5 relative z-[10000]"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Cabeçalho do Modal */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-red-400 bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 rounded-full">
+                    <PlayCircle className="w-3.5 h-3.5" />
+                    Como Executar o Exercício
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mt-1.5">{exerciseName}</h3>
+                  {targetMuscle && (
+                    <p className="text-xs text-gray-400">Músculo alvo: {targetMuscle}</p>
+                  )}
                 </div>
-              ) : currentVideoId ? (
-                <iframe
-                  key={currentVideoId}
-                  src={`https://www.youtube.com/embed/${currentVideoId}?autoplay=1&rel=0`}
-                  title={`Execução de ${exerciseName}`}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <div className="text-center p-6 space-y-3">
-                  <p className="text-sm text-gray-300">
-                    Clique abaixo para abrir os vídeos de execução diretamente no YouTube:
-                  </p>
-                  <a
-                    href={searchUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Assistir no YouTube
-                  </a>
-                </div>
-              )}
-            </div>
 
-            {/* Rodapé com opções de trocar vídeo ou abrir no app do YouTube */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <div className="flex items-center gap-2">
-                {videoIds.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={nextVideo}
-                    className="text-xs border-white/15 bg-white/5 hover:bg-white/10 text-gray-200"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                    Outro vídeo ({currentIndex + 1}/{videoIds.length})
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 ml-auto">
-                <a
-                  href={
-                    currentVideoId
-                      ? `https://www.youtube.com/watch?v=${currentVideoId}`
-                      : searchUrl
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-md"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Abrir no YouTube
-                </a>
                 <Button
                   type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="text-xs font-semibold"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-gray-400 hover:text-white rounded-full shrink-0"
                   onClick={() => setIsOpen(false)}
                 >
-                  Fechar
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
+
+              {/* Player do YouTube */}
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/10 flex items-center justify-center">
+                {loading ? (
+                  <div className="flex flex-col items-center gap-2 text-gray-300">
+                    <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+                    <p className="text-xs font-medium">Buscando vídeo de execução no YouTube...</p>
+                  </div>
+                ) : currentVideoId ? (
+                  <iframe
+                    key={currentVideoId}
+                    src={`https://www.youtube.com/embed/${currentVideoId}?autoplay=1&rel=0`}
+                    title={`Execução de ${exerciseName}`}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="text-center p-6 space-y-3">
+                    <p className="text-sm text-gray-300">
+                      Clique abaixo para abrir os vídeos de execução diretamente no YouTube:
+                    </p>
+                    <a
+                      href={searchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Assistir no YouTube
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Rodapé com opções de trocar vídeo ou abrir no app do YouTube */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div className="flex items-center gap-2">
+                  {videoIds.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={nextVideo}
+                      className="text-xs border-white/15 bg-white/5 hover:bg-white/10 text-gray-200"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Outro vídeo ({currentIndex + 1}/{videoIds.length})
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <a
+                    href={
+                      currentVideoId
+                        ? `https://www.youtube.com/watch?v=${currentVideoId}`
+                        : searchUrl
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-md"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Abrir no YouTube
+                  </a>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs font-semibold"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
@@ -384,195 +385,203 @@ export default function WorkoutSessionPage() {
       </div>
 
       {/* Pílula flutuante no topo quando o cronômetro de descanso está rodando minimizado */}
-      {restTimeLeft !== null && !isTimerModalOpen && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[90] w-[92%] max-w-sm">
-          <div
-            onClick={() => setIsTimerModalOpen(true)}
-            className={`cursor-pointer px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center justify-between transition-all ${
-              restTimeLeft === 0
-                ? "bg-emerald-600/95 border-emerald-300 text-white animate-bounce"
-                : "bg-zinc-900/95 border-emerald-500/50 text-white"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-emerald-500/20 text-emerald-400">
-                <Timer className="w-5 h-5 animate-pulse" />
+      {typeof document !== "undefined" &&
+        restTimeLeft !== null &&
+        !isTimerModalOpen &&
+        createPortal(
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9997] w-[92%] max-w-sm">
+            <div
+              onClick={() => setIsTimerModalOpen(true)}
+              className={`cursor-pointer px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center justify-between transition-all ${
+                restTimeLeft === 0
+                  ? "bg-emerald-600/95 border-emerald-300 text-white animate-bounce"
+                  : "bg-zinc-900/95 border-emerald-500/50 text-white"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-emerald-500/20 text-emerald-400">
+                  <Timer className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-300 font-medium truncate max-w-[160px]">
+                    {activeTimerLabel || "Descanso"}
+                  </p>
+                  <p className="text-lg font-extrabold tracking-wider text-emerald-400">
+                    {restTimeLeft === 0 ? "Finalizado! 💪" : formatTimer(restTimeLeft)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-300 font-medium truncate max-w-[160px]">
-                  {activeTimerLabel || "Descanso"}
-                </p>
-                <p className="text-lg font-extrabold tracking-wider text-emerald-400">
-                  {restTimeLeft === 0 ? "Finalizado! 💪" : formatTimer(restTimeLeft)}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-gray-200 hover:text-white hover:bg-white/10"
-                onClick={e => {
-                  e.stopPropagation()
-                  setIsTimerModalOpen(true)
-                }}
-                title="Expandir cronômetro"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-gray-200 hover:text-white hover:bg-white/10"
-                onClick={e => {
-                  e.stopPropagation()
-                  closeRestTimer()
-                }}
-                title="Fechar cronômetro"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CRONÔMETRO SOBREPOSTO (MODAL EM FRENTE À TELA - SEM PRECISAR ROLAR) */}
-      {restTimeLeft !== null && isTimerModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl bg-zinc-900/95 border border-emerald-500/40 shadow-2xl shadow-emerald-500/20 p-6 text-center space-y-5 relative overflow-hidden">
-            {/* Barra superior de progresso */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-white/10">
-              <div
-                className="h-full bg-emerald-500 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full flex items-center gap-1.5">
-                <Timer className="w-3.5 h-3.5 animate-pulse" />
-                Cronômetro de Descanso
-              </span>
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-white rounded-full"
-                  onClick={() => setIsTimerModalOpen(false)}
-                  title="Minimizar para continuar vendo a ficha"
+                  className="h-8 w-8 text-gray-200 hover:text-white hover:bg-white/10"
+                  onClick={e => {
+                    e.stopPropagation()
+                    setIsTimerModalOpen(true)
+                  }}
+                  title="Expandir cronômetro"
                 >
-                  <Minimize2 className="w-4 h-4" />
+                  <Maximize2 className="w-4 h-4" />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-white rounded-full"
-                  onClick={closeRestTimer}
+                  className="h-8 w-8 text-gray-200 hover:text-white hover:bg-white/10"
+                  onClick={e => {
+                    e.stopPropagation()
+                    closeRestTimer()
+                  }}
                   title="Fechar cronômetro"
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
+          </div>,
+          document.body
+        )}
 
-            {activeTimerLabel && (
-              <p className="text-sm text-gray-300 font-medium truncate px-2">{activeTimerLabel}</p>
-            )}
+      {/* CRONÔMETRO SOBREPOSTO (MODAL EM FRENTE À TELA - SEM PRECISAR ROLAR) */}
+      {typeof document !== "undefined" &&
+        restTimeLeft !== null &&
+        isTimerModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <div className="w-full max-w-sm rounded-3xl bg-zinc-950 border border-emerald-500/40 shadow-2xl shadow-emerald-500/20 p-6 text-center space-y-5 relative overflow-hidden">
+              {/* Barra superior de progresso */}
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-white/10">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
 
-            {/* Display Gigante do Tempo */}
-            <div className="py-4">
-              {restTimeLeft > 0 ? (
-                <div className="text-6xl font-black tracking-tight text-white font-mono">
-                  {formatTimer(restTimeLeft)}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <Timer className="w-3.5 h-3.5 animate-pulse" />
+                  Cronômetro de Descanso
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-white rounded-full"
+                    onClick={() => setIsTimerModalOpen(false)}
+                    title="Minimizar para continuar vendo a ficha"
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-white rounded-full"
+                    onClick={closeRestTimer}
+                    title="Fechar cronômetro"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
-              ) : (
-                <div className="space-y-1 py-2">
-                  <p className="text-3xl font-extrabold text-emerald-400 animate-bounce">
-                    00:00 • Bora! 💪
-                  </p>
-                  <p className="text-xs text-gray-300">Seu tempo de descanso terminou!</p>
-                </div>
+              </div>
+
+              {activeTimerLabel && (
+                <p className="text-sm text-gray-300 font-medium truncate px-2">{activeTimerLabel}</p>
               )}
-            </div>
 
-            {/* Botões rápidos de ajuste (-15s / +15s / +30s) */}
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/15 bg-white/5 hover:bg-white/10 text-white"
-                onClick={() => adjustRestTime(-15)}
-              >
-                <Minus className="w-3.5 h-3.5 mr-1" />
-                15s
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/15 bg-white/5 hover:bg-white/10 text-white"
-                onClick={() => adjustRestTime(15)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                15s
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/15 bg-white/5 hover:bg-white/10 text-white"
-                onClick={() => adjustRestTime(30)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                30s
-              </Button>
-            </div>
+              {/* Display Gigante do Tempo */}
+              <div className="py-4">
+                {restTimeLeft > 0 ? (
+                  <div className="text-6xl font-black tracking-tight text-white font-mono">
+                    {formatTimer(restTimeLeft)}
+                  </div>
+                ) : (
+                  <div className="space-y-1 py-2">
+                    <p className="text-3xl font-extrabold text-emerald-400 animate-bounce">
+                      00:00 • Bora! 💪
+                    </p>
+                    <p className="text-xs text-gray-300">Seu tempo de descanso terminou!</p>
+                  </div>
+                )}
+              </div>
 
-            {/* Tempos pré-definidos */}
-            <div className="grid grid-cols-4 gap-2 pt-1">
-              {[45, 60, 90, 120].map(sec => (
-                <button
-                  key={sec}
+              {/* Botões rápidos de ajuste (-15s / +15s / +30s) */}
+              <div className="flex items-center justify-center gap-2">
+                <Button
                   type="button"
-                  onClick={() => startRest(sec)}
-                  className={`py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                    restTotalTime === sec
-                      ? "bg-emerald-500/25 border-emerald-400 text-emerald-300"
-                      : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                  }`}
+                  variant="outline"
+                  size="sm"
+                  className="border-white/15 bg-white/5 hover:bg-white/10 text-white"
+                  onClick={() => adjustRestTime(-15)}
                 >
-                  {sec}s
-                </button>
-              ))}
-            </div>
+                  <Minus className="w-3.5 h-3.5 mr-1" />
+                  15s
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-white/15 bg-white/5 hover:bg-white/10 text-white"
+                  onClick={() => adjustRestTime(15)}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  15s
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-white/15 bg-white/5 hover:bg-white/10 text-white"
+                  onClick={() => adjustRestTime(30)}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  30s
+                </Button>
+              </div>
 
-            {/* Ações principais do Modal */}
-            <div className="flex gap-2 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1 font-semibold"
-                onClick={() => setIsTimerModalOpen(false)}
-              >
-                Minimizar
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 font-bold bg-emerald-500 hover:bg-emerald-600 text-white"
-                onClick={closeRestTimer}
-              >
-                {restTimeLeft === 0 ? "Próxima Série" : "Pular Descanso"}
-              </Button>
+              {/* Tempos pré-definidos */}
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                {[45, 60, 90, 120].map(sec => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => startRest(sec)}
+                    className={`py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      restTotalTime === sec
+                        ? "bg-emerald-500/25 border-emerald-400 text-emerald-300"
+                        : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {sec}s
+                  </button>
+                ))}
+              </div>
+
+              {/* Ações principais do Modal */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1 font-semibold"
+                  onClick={() => setIsTimerModalOpen(false)}
+                >
+                  Minimizar
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 font-bold bg-emerald-500 hover:bg-emerald-600 text-white"
+                  onClick={closeRestTimer}
+                >
+                  {restTimeLeft === 0 ? "Próxima Série" : "Pular Descanso"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       <div className="space-y-6">
         {items.map((item: any) => {
