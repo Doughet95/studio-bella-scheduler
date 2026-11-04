@@ -22,6 +22,7 @@ import {
   Clock
 } from "lucide-react"
 import Link from "next/link"
+import { ExerciseVideoButton } from "@/components/ExerciseVideoModal"
 
 type WorkoutItem = {
   id: string
@@ -599,8 +600,14 @@ export default function WorkoutSessionPage() {
                   }`}
                 >
                   <div>
-                    <CardTitle className="text-xl text-white">{item.exercises.name}</CardTitle>
-                    <CardDescription className="text-gray-300">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-xl text-white">{item.exercises.name}</CardTitle>
+                      <ExerciseVideoButton
+                        exerciseName={item.exercises.name}
+                        targetMuscle={item.exercises.target_muscle}
+                      />
+                    </div>
+                    <CardDescription className="text-gray-300 mt-0.5">
                       Músculo: {item.exercises.target_muscle} • Alvo: {item.default_reps} reps
                     </CardDescription>
 

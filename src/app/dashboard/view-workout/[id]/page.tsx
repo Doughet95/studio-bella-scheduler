@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Loader2, ArrowLeft, History, PlayCircle } from "lucide-react"
 import Link from "next/link"
+import { ExerciseVideoButton } from "@/components/ExerciseVideoModal"
 
 type WorkoutItem = {
   id: string
@@ -131,7 +132,13 @@ export default function ViewWorkoutPage() {
                   </div>
                 )}
                 <CardHeader className={`pb-4 flex flex-col relative z-10 ${item.is_superset ? 'pt-6' : ''}`}>
-                  <CardTitle className="text-xl text-foreground">{item.exercises.name}</CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-xl text-foreground">{item.exercises.name}</CardTitle>
+                    <ExerciseVideoButton
+                      exerciseName={item.exercises.name}
+                      targetMuscle={item.exercises.target_muscle}
+                    />
+                  </div>
                   <CardDescription className="text-sm mt-1 text-muted-foreground">
                     Músculo alvo: <span className="text-primary font-medium">{item.exercises.target_muscle}</span>
                   </CardDescription>
