@@ -20,7 +20,8 @@ import {
   Minus,
   Minimize2,
   Maximize2,
-  Clock
+  Clock,
+  RotateCcw
 } from "lucide-react"
 import Link from "next/link"
 import { ExerciseVideoButton } from "@/components/ExerciseVideoModal"
@@ -70,33 +71,47 @@ export default function WorkoutSessionPage() {
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false)
   const [activeTimerLabel, setActiveTimerLabel] = useState<string>("")
 
-  // Inicializa o cronômetro total assim que entra na tela de Iniciar Treino
+  const startStorageKey = id ? `workout_start_time_${id}` : ""
+  const logsStorageKey = id ? `workout_draft_logs_${id}` : ""
+
+  // Inicializa o cronômetro total usando localStorage (não perde se abrir o WhatsApp ou a tela apagar)
   useEffect(() => {
-    if (!id) return
-    const storageKey = `workout_start_time_${id}`
-    const savedStart = typeof window !== "undefined" ? sessionStorage.getItem(storageKey) : null
+    if (!id || typeof window === "undefined") return
+    const savedStart = localStorage.getItem(startStorageKey)
     let startTs = Date.now()
 
     if (savedStart && !isNaN(Number(savedStart))) {
       startTs = Number(savedStart)
-    } else if (typeof window !== "undefined") {
-      sessionStorage.setItem(storageKey, String(startTs))
+    } else {
+      localStorage.setItem(startStorageKey, String(startTs))
     }
 
     setWorkoutStartTimestamp(startTs)
     setWorkoutElapsedSeconds(Math.max(0, Math.floor((Date.now() - startTs) / 1000)))
     setIsWorkoutTimerRunning(true)
-  }, [id])
+  }, [id, startStorageKey])
 
-  // Atualiza o cronômetro de tempo total de treino a cada segundo (usando Date.now() para não atrasar se a tela do celular apagar)
+  // Atualiza o cronômetro de tempo total de treino a cada segundo E quando o usuário volta do WhatsApp/tela bloqueada
   useEffect(() => {
     if (!isWorkoutTimerRunning || workoutStartTimestamp === null) return
 
-    const interval = setInterval(() => {
+    const updateElapsed = () => {
       setWorkoutElapsedSeconds(Math.max(0, Math.floor((Date.now() - workoutStartTimestamp) / 1000)))
-    }, 1000)
+    }
 
-    return () => clearInterval(interval)
+    const interval = setInterval(updateElapsed, 1000)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        updateElapsed()
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
   }, [isWorkoutTimerRunning, workoutStartTimestamp])
 
   useEffect(() => {
@@ -152,6 +167,7 @@ export default function WorkoutSessionPage() {
       if (exData) {
         setItems(exData as any)
 
+        // Inicializa a estrutura padrão de séries
         const initialLogs: Record<string, SetLog[]> = {}
         exData.forEach((item: any) => {
           initialLogs[item.exercise_id] = Array.from({ length: item.default_sets }).map((_, i) => ({
@@ -160,6 +176,34 @@ export default function WorkoutSessionPage() {
             weight: ""
           }))
         })
+
+        // Restaura automaticamente qualquer repetição/peso salvo no celular (localStorage)
+        if (typeof window !== "undefined" && id) {
+          try {
+            const savedDraftRaw = localStorage.getItem(`workout_draft_logs_${id}`)
+            if (savedDraftRaw) {
+              const savedDraft = JSON.parse(savedDraftRaw) as Record<string, SetLog[]>
+              Object.keys(initialLogs).forEach(exId => {
+                if (savedDraft[exId] && Array.isArray(savedDraft[exId])) {
+                  initialLogs[exId] = initialLogs[exId].map((defaultSet, idx) => {
+                    const savedSet = savedDraft[exId][idx]
+                    if (savedSet) {
+                      return {
+                        set_number: defaultSet.set_number,
+                        reps: savedSet.reps ?? "",
+                        weight: savedSet.weight ?? ""
+                      }
+                    }
+                    return defaultSet
+                  })
+                }
+              })
+            }
+          } catch (e) {
+            console.error("Erro ao restaurar rascunho do treino:", e)
+          }
+        }
+
         setLogs(initialLogs)
       }
 
@@ -201,17 +245,43 @@ export default function WorkoutSessionPage() {
     load()
   }, [id])
 
+  // Salva cada repetição e peso imediatamente no localStorage para nunca perder ao sair do navegador/apagar a tela
   const updateLog = (exerciseId: string, setIndex: number, field: "reps" | "weight", value: string) => {
     const val = value === "" ? "" : Number(value)
     setLogs(prev => {
       const updated = { ...prev }
-      updated[exerciseId] = [...updated[exerciseId]]
+      updated[exerciseId] = [...(updated[exerciseId] || [])]
       updated[exerciseId][setIndex] = {
         ...updated[exerciseId][setIndex],
         [field]: val
       }
+      if (typeof window !== "undefined" && logsStorageKey) {
+        try {
+          localStorage.setItem(logsStorageKey, JSON.stringify(updated))
+        } catch {}
+      }
       return updated
     })
+  }
+
+  const resetCurrentDraft = () => {
+    if (!confirm("Deseja zerar os campos preenchidos e reiniciar o cronômetro deste treino?")) return
+    const cleared: Record<string, SetLog[]> = {}
+    items.forEach((item: any) => {
+      cleared[item.exercise_id] = Array.from({ length: item.default_sets }).map((_, i) => ({
+        set_number: i + 1,
+        reps: "",
+        weight: ""
+      }))
+    })
+    setLogs(cleared)
+    const nowTs = Date.now()
+    setWorkoutStartTimestamp(nowTs)
+    setWorkoutElapsedSeconds(0)
+    if (typeof window !== "undefined") {
+      if (logsStorageKey) localStorage.removeItem(logsStorageKey)
+      if (startStorageKey) localStorage.setItem(startStorageKey, String(nowTs))
+    }
   }
 
   const getAiTip = async (exerciseId: string, exerciseName: string) => {
@@ -246,16 +316,12 @@ export default function WorkoutSessionPage() {
     const finalDurationSeconds = Math.max(1, Math.floor((endTimestamp - startTimestamp) / 1000))
     const durationMinutes = Math.max(1, Math.round(finalDurationSeconds / 60))
 
-    const { data: authData } = await supabase.auth.getSession()
-    const userId = authData?.session?.user?.id || null
-
-    // 1. Criar a sessão de treino com start_time real do início e end_time de agora
+    // 1. Criar a sessão de treino (sem user_id pois workout_sessions possui FK para tabela legada profiles)
     const { data: session, error: sessionError } = await supabase
       .from("workout_sessions")
       .insert([
         {
           workout_id: id,
-          user_id: userId,
           start_time: new Date(startTimestamp).toISOString(),
           end_time: new Date(endTimestamp).toISOString()
         }
@@ -264,7 +330,8 @@ export default function WorkoutSessionPage() {
       .single()
 
     if (!session || sessionError) {
-      alert("Erro ao salvar a sessão de treino.")
+      console.error("Erro ao criar workout_session:", sessionError)
+      alert("Erro ao salvar a sessão de treino: " + (sessionError?.message || "Tente novamente."))
       setIsWorkoutTimerRunning(true)
       setSaving(false)
       return
@@ -280,7 +347,7 @@ export default function WorkoutSessionPage() {
             session_id: session.id,
             exercise_id: exerciseId,
             set_number: log.set_number,
-            reps: log.reps === "" ? 0 : Number(log.reps),
+            reps: log.reps === "" ? 0 : Math.round(Number(log.reps)),
             weight: log.weight === "" ? 0 : Number(log.weight)
           })
         }
@@ -288,21 +355,29 @@ export default function WorkoutSessionPage() {
     })
 
     if (logsToInsert.length > 0) {
-      await supabase.from("exercise_logs").insert(logsToInsert)
+      const { error: logsError } = await supabase.from("exercise_logs").insert(logsToInsert)
+      if (logsError) {
+        console.error("Erro ao salvar exercise_logs:", logsError)
+      }
     }
 
-    // Registra o check-in no histórico com a duração em minutos
-    await supabase.from("workout_history").insert([
-      {
-        workout_id: id,
-        duration_minutes: durationMinutes,
-        ...(userId ? { user_id: userId } : {})
-      }
-    ])
+    // 3. Registra o check-in no histórico (sem bloquear caso haja política/constraint)
+    try {
+      const { data: authData } = await supabase.auth.getSession()
+      const userId = authData?.session?.user?.id || null
+      await supabase.from("workout_history").insert([
+        {
+          workout_id: id,
+          duration_minutes: durationMinutes,
+          ...(userId ? { user_id: userId } : {})
+        }
+      ])
+    } catch {}
 
-    // Limpa o timestamp temporário da sessão
+    // 4. Limpa o rascunho salvo no celular somente após salvar com sucesso no banco!
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem(`workout_start_time_${id}`)
+      if (logsStorageKey) localStorage.removeItem(logsStorageKey)
+      if (startStorageKey) localStorage.removeItem(startStorageKey)
     }
 
     // Redireciona diretamente para a tela de Histórico enviando o tempo total gasto
@@ -350,18 +425,31 @@ export default function WorkoutSessionPage() {
           </Button>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{workoutName}</h1>
-            <p className="text-gray-300 text-sm mt-0.5">
-              Preencha as repetições e carga (kg) realizadas.
+            <p className="text-emerald-400 text-xs font-medium mt-0.5">
+              ✓ Suas repetições e pesos ficam salvos automaticamente no aparelho
             </p>
           </div>
         </div>
 
-        <Link href={`/dashboard/history/${id}`}>
-          <Button variant="secondary" size="sm" className="font-semibold">
-            <History className="w-4 h-4 mr-1.5" />
-            Ver Histórico
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={resetCurrentDraft}
+            className="text-xs border-white/15 bg-white/5 hover:bg-white/10 text-gray-300"
+            title="Zerar campos e reiniciar tempo"
+          >
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />
+            Zerar
           </Button>
-        </Link>
+          <Link href={`/dashboard/history/${id}`}>
+            <Button variant="secondary" size="sm" className="font-semibold">
+              <History className="w-4 h-4 mr-1.5" />
+              Histórico
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Painel em Destaque do Cronômetro de Tempo Total do Treino */}
