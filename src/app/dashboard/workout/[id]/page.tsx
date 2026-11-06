@@ -284,7 +284,8 @@ export default function WorkoutSessionPage() {
     }
   }
 
-  const getAiTip = async (exerciseId: string, exerciseName: string) => {
+  const getAiTip = async (item: WorkoutItem) => {
+    const exerciseId = item.exercise_id
     setLoadingAi(prev => ({ ...prev, [exerciseId]: true }))
     try {
       const res = await fetch("/api/ai/coach", {
@@ -292,15 +293,23 @@ export default function WorkoutSessionPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           exerciseId,
-          exerciseName,
-          currentLogs: logs[exerciseId]
+          exerciseName: item.exercises.name,
+          targetMuscle: item.exercises.target_muscle,
+          targetReps: item.default_reps,
+          defaultSets: item.default_sets,
+          currentLogs: logs[exerciseId] || [],
+          previousLogs: lastSessionLogs[exerciseId] || []
         })
       })
 
       const data = await res.json()
       setAiTips(prev => ({ ...prev, [exerciseId]: data.tip || "Mantenha o foco na execução!" }))
     } catch (e) {
-      setAiTips(prev => ({ ...prev, [exerciseId]: "Concentre-se no movimento e não tenha pressa." }))
+      setAiTips(prev => ({
+        ...prev,
+        [exerciseId]:
+          "📊 Análise Técnica: Mantenha cadência controlada (2 a 3s na descida) e respeite o alinhamento articular."
+      }))
     } finally {
       setLoadingAi(prev => ({ ...prev, [exerciseId]: false }))
     }
@@ -728,7 +737,7 @@ export default function WorkoutSessionPage() {
                     variant="outline"
                     size="sm"
                     className="text-primary border-primary/50 hover:bg-primary/10 shrink-0"
-                    onClick={() => getAiTip(item.exercise_id, item.exercises.name)}
+                    onClick={() => getAiTip(item)}
                     disabled={loadingAi[item.exercise_id]}
                   >
                     {loadingAi[item.exercise_id] ? (
@@ -736,14 +745,45 @@ export default function WorkoutSessionPage() {
                     ) : (
                       <BrainCircuit className="w-4 h-4 mr-2" />
                     )}
-                    Dica IA
+                    Análise IA
                   </Button>
                 </CardHeader>
                 <CardContent className="relative z-10">
                   {aiTips[item.exercise_id] && (
-                    <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm flex gap-3">
-                      <BrainCircuit className="w-5 h-5 text-primary shrink-0" />
-                      <p className="text-foreground/90 font-medium">{aiTips[item.exercise_id]}</p>
+                    <div className="mb-4 p-4 rounded-xl bg-zinc-900/90 border border-primary/35 shadow-lg space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+                          <BrainCircuit className="w-4 h-4 shrink-0" />
+                          <span>Análise Técnica & Biomecânica (Coach IA)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAiTips(prev => {
+                              const copy = { ...prev }
+                              delete copy[item.exercise_id]
+                              return copy
+                            })
+                          }
+                          className="text-gray-400 hover:text-white p-0.5 rounded"
+                          title="Fechar análise"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-2 text-xs sm:text-sm text-gray-200 leading-relaxed">
+                        {aiTips[item.exercise_id]
+                          .split("\n\n")
+                          .filter(Boolean)
+                          .map((paragraph, pIdx) => (
+                            <p
+                              key={pIdx}
+                              className="p-2.5 rounded-lg bg-white/5 border border-white/5"
+                            >
+                              {paragraph}
+                            </p>
+                          ))}
+                      </div>
                     </div>
                   )}
 
