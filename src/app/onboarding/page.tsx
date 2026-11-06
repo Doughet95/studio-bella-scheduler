@@ -101,6 +101,36 @@ export default function OnboardingPage() {
         }
       }
 
+      // 3.5 Salvar medidas iniciais no perfil do usuário (histórico de evolução)
+      try {
+        const parseNum = (v: string) => (v && !isNaN(Number(v)) ? Number(v) : null)
+        const existingHistory = Array.isArray(session.user.user_metadata?.measurements_history)
+          ? session.user.user_metadata.measurements_history
+          : []
+        const initialEntry = {
+          id: String(Date.now()),
+          date: new Date().toISOString().split("T")[0],
+          created_at: new Date().toISOString(),
+          weight: parseNum(formData.peso),
+          arm: parseNum(formData.medidas_braco),
+          chest: parseNum(formData.medidas_peito),
+          waist: parseNum(formData.medidas_cintura),
+          thigh: parseNum(formData.medidas_coxa),
+          hips: parseNum(formData.medidas_quadril),
+          glutes: parseNum(formData.medidas_bumbum),
+          calf: null,
+          body_fat: null,
+          notes: "Avaliação no questionário IA"
+        }
+        await supabase.auth.updateUser({
+          data: {
+            height_cm: parseNum(formData.altura) ?? session.user.user_metadata?.height_cm ?? "",
+            age: parseNum(formData.idade) ?? session.user.user_metadata?.age ?? "",
+            measurements_history: [initialEntry, ...existingHistory]
+          }
+        })
+      } catch {}
+
       // 4. Redirecionar
       router.push('/dashboard')
     } catch (e) {

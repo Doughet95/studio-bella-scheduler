@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
-import { PlusCircle, PlayCircle, Loader2, Trash2, Edit, Eye, History } from "lucide-react"
+import { PlusCircle, PlayCircle, Loader2, Trash2, Edit, Eye, History, Scale } from "lucide-react"
 
 type Workout = { 
   id: string, 
@@ -49,17 +49,25 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Minhas Fichas</h1>
           <p className="text-gray-300 mt-1 font-medium">Escolha um treino para iniciar hoje.</p>
         </div>
-        <Link href="/dashboard/create-workout">
-          <Button className="font-bold shadow-lg shadow-primary/20">
-            <PlusCircle className="w-5 h-5 mr-2" />
-            Nova Ficha
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/profile">
+            <Button variant="secondary" className="font-bold">
+              <Scale className="w-4 h-4 mr-2 text-primary" />
+              Peso e Medidas
+            </Button>
+          </Link>
+          <Link href="/dashboard/create-workout">
+            <Button className="font-bold shadow-lg shadow-primary/20">
+              <PlusCircle className="w-5 h-5 mr-2" />
+              Nova Ficha
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
