@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
-import { Sparkles, ArrowRight, ArrowLeft, Loader2, Dumbbell, Activity, Calendar, HeartPulse, CheckCircle2 } from "lucide-react"
+import { Sparkles, ArrowRight, ArrowLeft, Loader2, Dumbbell, Activity, Calendar, HeartPulse, CheckCircle2, ThumbsUp, ThumbsDown, X, Plus } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,6 +17,9 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [replaceExisting, setReplaceExisting] = useState(true)
   const [hasExistingWorkouts, setHasExistingWorkouts] = useState(false)
+  const [catalogExercises, setCatalogExercises] = useState<{ id: string; name: string; target_muscle: string }[]>([])
+  const [selectedLikeInput, setSelectedLikeInput] = useState("")
+  const [selectedDislikeInput, setSelectedDislikeInput] = useState("")
 
   const [formData, setFormData] = useState({
     idade: "",
@@ -29,6 +32,8 @@ export default function OnboardingPage() {
     tempoPorTreino: "45",
     lesoes: "",
     observacoes: "",
+    exerciciosQueGosta: [] as string[],
+    exerciciosQueNaoGosta: [] as string[],
     medidas_braco: "",
     medidas_peito: "",
     medidas_cintura: "",
@@ -40,8 +45,62 @@ export default function OnboardingPage() {
     dieta_agua: ""
   })
 
+  const addLikedExercise = (name: string) => {
+    const clean = name.trim()
+    if (!clean) return
+    setFormData(prev => ({
+      ...prev,
+      exerciciosQueGosta: prev.exerciciosQueGosta.includes(clean)
+        ? prev.exerciciosQueGosta
+        : [...prev.exerciciosQueGosta, clean],
+      exerciciosQueNaoGosta: prev.exerciciosQueNaoGosta.filter(x => x.toLowerCase() !== clean.toLowerCase())
+    }))
+    setSelectedLikeInput("")
+  }
+
+  const removeLikedExercise = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      exerciciosQueGosta: prev.exerciciosQueGosta.filter(x => x !== name)
+    }))
+  }
+
+  const addDislikedExercise = (name: string) => {
+    const clean = name.trim()
+    if (!clean) return
+    setFormData(prev => ({
+      ...prev,
+      exerciciosQueNaoGosta: prev.exerciciosQueNaoGosta.includes(clean)
+        ? prev.exerciciosQueNaoGosta
+        : [...prev.exerciciosQueNaoGosta, clean],
+      exerciciosQueGosta: prev.exerciciosQueGosta.filter(x => x.toLowerCase() !== clean.toLowerCase())
+    }))
+    setSelectedDislikeInput("")
+  }
+
+  const removeDislikedExercise = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      exerciciosQueNaoGosta: prev.exerciciosQueNaoGosta.filter(x => x !== name)
+    }))
+  }
+
   useEffect(() => {
     async function loadExistingProfile() {
+      // Carrega catálogo de exercícios para seleção rápida na anamnese
+      const { data: exList } = await supabase
+        .from("exercises")
+        .select("id, name, target_muscle")
+        .order("name")
+      if (exList) {
+        const map = new Map<string, { id: string; name: string; target_muscle: string }>()
+        for (const item of exList) {
+          const k = item.name.toLowerCase().trim()
+          if (!map.has(k)) map.set(k, item)
+        }
+        setCatalogExercises(Array.from(map.values()))
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
@@ -62,7 +121,13 @@ export default function OnboardingPage() {
         diasPorSemana: savedProfile.diasPorSemana || prev.diasPorSemana,
         tempoPorTreino: savedProfile.tempoPorTreino || prev.tempoPorTreino,
         lesoes: savedProfile.lesoes || prev.lesoes,
-        observacoes: savedProfile.observacoes || prev.observacoes
+        observacoes: savedProfile.observacoes || prev.observacoes,
+        exerciciosQueGosta: Array.isArray(savedProfile.exerciciosQueGosta)
+          ? savedProfile.exerciciosQueGosta
+          : prev.exerciciosQueGosta,
+        exerciciosQueNaoGosta: Array.isArray(savedProfile.exerciciosQueNaoGosta)
+          ? savedProfile.exerciciosQueNaoGosta
+          : prev.exerciciosQueNaoGosta
       }))
 
       const { count } = await supabase
@@ -299,7 +364,9 @@ export default function OnboardingPage() {
               diasPorSemana: formData.diasPorSemana,
               tempoPorTreino: formData.tempoPorTreino,
               lesoes: formData.lesoes,
-              observacoes: formData.observacoes
+              observacoes: formData.observacoes,
+              exerciciosQueGosta: formData.exerciciosQueGosta,
+              exerciciosQueNaoGosta: formData.exerciciosQueNaoGosta
             },
             workout_plan_cycle: {
               started_at: nowIso,
@@ -679,34 +746,228 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {/* PASSO 6: SAÚDE E GERAR */}
+          {/* PASSO 6: SAÚDE, EXERCÍCIOS QUE MAIS GOSTA / NÃO GOSTA E GERAR */}
           {step === 6 && (
             <>
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
                   <HeartPulse className="w-6 h-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Saúde & Preferências</CardTitle>
-                <CardDescription>Detalhes finais para personalizar sua ficha com segurança articular.</CardDescription>
+                <CardTitle className="text-2xl">Preferências de Exercícios & Saúde</CardTitle>
+                <CardDescription>
+                  Escolha quais exercícios você mais gosta (para incluir na ficha) e quais não gosta (para retirar da ficha).
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
+                {/* 1. EXERCÍCIOS QUE MAIS GOSTA (INCLUIR) */}
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ThumbsUp className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <Label className="text-sm font-bold text-emerald-300">
+                      Quais exercícios você MAIS GOSTA de fazer? (Incluir na ficha)
+                    </Label>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <select
+                      className="flex h-9 flex-1 rounded-md border border-emerald-500/30 bg-background px-3 py-1 text-xs sm:text-sm"
+                      value={selectedLikeInput}
+                      onChange={e => {
+                        if (e.target.value) {
+                          addLikedExercise(e.target.value)
+                        }
+                      }}
+                    >
+                      <option value="">Selecionar exercício para incluir...</option>
+                      {catalogExercises.map(ex => (
+                        <option key={ex.id} value={ex.name}>
+                          {ex.name} ({ex.target_muscle})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sugestões rápidas para clicar */}
+                  <div className="space-y-1">
+                    <span className="text-[11px] text-gray-300 block">Toque rápido para incluir:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(formData.genero === "feminino"
+                        ? [
+                            "Elevação Pélvica com Barra",
+                            "Agachamento Búlgaro com Halteres",
+                            "Cadeira Abdutora",
+                            "Glúteo na Polia Baixa (Coice no Cabo)",
+                            "Leg Press",
+                            "Stiff",
+                            "Agachamento Sumô com Halter ou Barra",
+                            "Puxada Frontal"
+                          ]
+                        : [
+                            "Barra Fixa",
+                            "Supino Reto com Barra",
+                            "Agachamento Livre",
+                            "Leg Press",
+                            "Remada curvada",
+                            "Desenvolvimento com Halteres",
+                            "Rosca Direta",
+                            "Tríceps Corda"
+                          ]
+                      ).map(sug => {
+                        const isSelected = formData.exerciciosQueGosta.includes(sug)
+                        return (
+                          <button
+                            key={sug}
+                            type="button"
+                            onClick={() => (isSelected ? removeLikedExercise(sug) : addLikedExercise(sug))}
+                            className={`text-[11px] px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                              isSelected
+                                ? "bg-emerald-500 text-black font-bold border-emerald-400"
+                                : "bg-background/60 text-gray-300 border-white/15 hover:border-emerald-400/50"
+                            }`}
+                          >
+                            <Plus className="w-3 h-3" />
+                            {sug}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {formData.exerciciosQueGosta.length > 0 && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-semibold text-emerald-300 block mb-1.5">
+                        ✅ Garantidos na sua ficha:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {formData.exerciciosQueGosta.map(item => (
+                          <span
+                            key={item}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold bg-emerald-500/25 text-emerald-200 border border-emerald-500/40 px-2.5 py-1 rounded-full"
+                          >
+                            {item}
+                            <button
+                              type="button"
+                              onClick={() => removeLikedExercise(item)}
+                              className="hover:text-white"
+                              title="Remover"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. EXERCÍCIOS QUE NÃO GOSTA (EXCLUIR DA FICHA) */}
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ThumbsDown className="w-4 h-4 text-rose-400 shrink-0" />
+                    <Label className="text-sm font-bold text-rose-300">
+                      Quais exercícios você NÃO GOSTA de fazer? (Não colocar na ficha)
+                    </Label>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <select
+                      className="flex h-9 flex-1 rounded-md border border-rose-500/30 bg-background px-3 py-1 text-xs sm:text-sm"
+                      value={selectedDislikeInput}
+                      onChange={e => {
+                        if (e.target.value) {
+                          addDislikedExercise(e.target.value)
+                        }
+                      }}
+                    >
+                      <option value="">Selecionar exercício para retirar da ficha...</option>
+                      {catalogExercises.map(ex => (
+                        <option key={ex.id} value={ex.name}>
+                          {ex.name} ({ex.target_muscle})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sugestões rápidas para evitar */}
+                  <div className="space-y-1">
+                    <span className="text-[11px] text-gray-300 block">Toque rápido para evitar:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "Levantamento Terra",
+                        "Agachamento Livre",
+                        "Barra Fixa",
+                        "Agachamento Búlgaro com Halteres",
+                        "Afundo / Passada com Halteres",
+                        "Stiff",
+                        "Supino Reto com Barra",
+                        "Leg Press"
+                      ].map(sug => {
+                        const isBlocked = formData.exerciciosQueNaoGosta.includes(sug)
+                        return (
+                          <button
+                            key={sug}
+                            type="button"
+                            onClick={() => (isBlocked ? removeDislikedExercise(sug) : addDislikedExercise(sug))}
+                            className={`text-[11px] px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                              isBlocked
+                                ? "bg-rose-500 text-white font-bold border-rose-400"
+                                : "bg-background/60 text-gray-300 border-white/15 hover:border-rose-400/50"
+                            }`}
+                          >
+                            <X className="w-3 h-3" />
+                            {sug}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {formData.exerciciosQueNaoGosta.length > 0 && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-semibold text-rose-300 block mb-1.5">
+                        🚫 Bloqueados (não entrarão na ficha):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {formData.exerciciosQueNaoGosta.map(item => (
+                          <span
+                            key={item}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold bg-rose-500/25 text-rose-200 border border-rose-500/40 px-2.5 py-1 rounded-full"
+                          >
+                            {item}
+                            <button
+                              type="button"
+                              onClick={() => removeDislikedExercise(item)}
+                              className="hover:text-white"
+                              title="Remover"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. LESÕES E OBSERVAÇÕES */}
                 <div className="space-y-2">
                   <Label>Possui alguma lesão ou restrição articular?</Label>
                   <Textarea
                     placeholder="Ex: Condromalácia patelar (dor no joelho), hérnia de disco lombar, dor no ombro..."
                     value={formData.lesoes}
                     onChange={e => setFormData({ ...formData, lesoes: e.target.value })}
-                    className="min-h-[75px]"
+                    className="min-h-[65px]"
                   />
                   <p className="text-xs text-muted-foreground">Deixe em branco se estiver 100% apto(a).</p>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Preferências de exercícios ou foco extra (Opcional)</Label>
+                  <Label>Alguma outra observação sobre o treino? (Opcional)</Label>
                   <Textarea
-                    placeholder="Ex: Quero dar foco extra em glúteo médio, não gosto de agachamento livre..."
+                    placeholder="Ex: Quero dar foco extra em glúteo médio ou porção lateral do ombro..."
                     value={formData.observacoes}
                     onChange={e => setFormData({ ...formData, observacoes: e.target.value })}
-                    className="min-h-[75px]"
+                    className="min-h-[60px]"
                   />
                 </div>
 

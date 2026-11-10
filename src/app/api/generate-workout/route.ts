@@ -93,20 +93,289 @@ async function ensureCompleteCatalog(): Promise<CatalogExercise[]> {
   return Array.from(dedupMap.values())
 }
 
-function findExId(catalog: CatalogExercise[], keywords: string[], fallbackMuscle?: string): string {
+function normalizeText(str: string): string {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+}
+
+function toStringList(input: any): string[] {
+  if (!input) return []
+  if (Array.isArray(input)) {
+    return input
+      .flatMap(item => String(item).split(/[,;\n]+/))
+      .map(s => s.trim())
+      .filter(Boolean)
+  }
+  if (typeof input === "string") {
+    return input
+      .split(/[,;\n]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+function resolveStudentExercisePreferences(
+  formData: any,
+  catalog: CatalogExercise[]
+): {
+  likedExercises: CatalogExercise[]
+  dislikedIds: Set<string>
+  likedNames: string[]
+  dislikedNames: string[]
+} {
+  const rawLiked = toStringList(formData.exerciciosQueGosta)
+  const rawDisliked = toStringList(formData.exerciciosQueNaoGosta)
+
+  // Também analisa o campo de observações livres caso o aluno tenha escrito lá
+  const obsRaw = String(formData.observacoes || "")
+  if (obsRaw.trim()) {
+    const clauses = obsRaw.split(/[.;,\n]+/).map(s => s.trim()).filter(Boolean)
+    for (const clause of clauses) {
+      const normClause = normalizeText(clause)
+      const isNegative =
+        normClause.includes("nao gosto") ||
+        normClause.includes("odeio") ||
+        normClause.includes("detesto") ||
+        normClause.includes("evitar") ||
+        normClause.includes("sem ") ||
+        normClause.includes("tirar")
+
+      const isPositive =
+        !isNegative &&
+        (normClause.includes("gosto") ||
+          normClause.includes("amo") ||
+          normClause.includes("adoro") ||
+          normClause.includes("incluir") ||
+          normClause.includes("quero fazer") ||
+          normClause.includes("favorito"))
+
+      if (isNegative || isPositive) {
+        for (const ex of catalog) {
+          const normEx = normalizeText(ex.name)
+          // Verifica nome completo ou termos principais com >= 4 letras
+          if (normEx.length >= 3 && normClause.includes(normEx)) {
+            if (isNegative) rawDisliked.push(ex.name)
+            else if (isPositive) rawLiked.push(ex.name)
+          }
+        }
+      }
+    }
+  }
+
+  const dislikedIds = new Set<string>()
+  const dislikedNamesSet = new Set<string>()
+
+  for (const term of rawDisliked) {
+    const normTerm = normalizeText(term)
+    if (!normTerm || normTerm.length < 3) continue
+    for (const ex of catalog) {
+      const normEx = normalizeText(ex.name)
+      if (ex.id === term || normEx === normTerm || normEx.includes(normTerm) || normTerm.includes(normEx)) {
+        dislikedIds.add(ex.id)
+        dislikedNamesSet.add(ex.name)
+      }
+    }
+  }
+
+  const likedMap = new Map<string, CatalogExercise>()
+  for (const term of rawLiked) {
+    const normTerm = normalizeText(term)
+    if (!normTerm || normTerm.length < 3) continue
+    // Tenta match exato primeiro, depois parcial
+    const exact = catalog.find(ex => ex.id === term || normalizeText(ex.name) === normTerm)
+    if (exact && !dislikedIds.has(exact.id)) {
+      likedMap.set(exact.id, exact)
+      continue
+    }
+    const partial = catalog.find(ex => {
+      const normEx = normalizeText(ex.name)
+      return normEx.includes(normTerm) || normTerm.includes(normEx)
+    })
+    if (partial && !dislikedIds.has(partial.id)) {
+      likedMap.set(partial.id, partial)
+    }
+  }
+
+  const likedExercises = Array.from(likedMap.values())
+  return {
+    likedExercises,
+    dislikedIds,
+    likedNames: likedExercises.map(e => e.name),
+    dislikedNames: Array.from(dislikedNamesSet)
+  }
+}
+
+function getMuscleFamily(muscleOrName: string): string {
+  const m = normalizeText(muscleOrName)
+  if (m.includes("gluteo") || m.includes("abdutora") || m.includes("pelvica")) return "gluteos"
+  if (m.includes("posterior") || m.includes("isquio") || m.includes("flexora") || m.includes("stiff")) return "posterior"
+  if (m.includes("quadriceps") || m.includes("extensora") || m.includes("adutor") || m.includes("perna") || m.includes("leg") || m.includes("agachamento")) return "pernas"
+  if (m.includes("costas") || m.includes("dorsal") || m.includes("puxada") || m.includes("remada") || m.includes("barra fixa") || m.includes("pull")) return "costas"
+  if (m.includes("peito") || m.includes("peitoral") || m.includes("supino") || m.includes("crucifixo") || m.includes("fly") || m.includes("push")) return "peito"
+  if (m.includes("ombro") || m.includes("deltoide") || m.includes("trapezio") || m.includes("desenvolvimento") || m.includes("elevacao")) return "ombros"
+  if (m.includes("biceps") || m.includes("rosca")) return "biceps"
+  if (m.includes("triceps") || m.includes("testa") || m.includes("frances")) return "triceps"
+  if (m.includes("abdomen") || m.includes("abdominal") || m.includes("core") || m.includes("prancha")) return "abdomen"
+  return "geral"
+}
+
+function enforceExercisePreferences(
+  workouts: GeneratedWorkout[],
+  catalog: CatalogExercise[],
+  likedExercises: CatalogExercise[],
+  dislikedIds: Set<string>,
+  goalParams: ReturnType<typeof getGoalParameters>
+): GeneratedWorkout[] {
+  if (!Array.isArray(workouts) || workouts.length === 0) return workouts
+
+  const catalogById = new Map(catalog.map(c => [c.id, c]))
+  const likedIds = new Set(likedExercises.map(l => l.id))
+
+  // 1. Remove / substitui imediatamente qualquer exercício que o aluno NÃO gosta
+  for (const w of workouts) {
+    if (!Array.isArray(w.exercises)) continue
+    const usedInWorkout = new Set(w.exercises.map(e => e.exercise_id))
+
+    w.exercises = w.exercises.map(ex => {
+      if (!dislikedIds.has(ex.exercise_id)) return ex
+
+      const originalCat = catalogById.get(ex.exercise_id)
+      const targetFamily = getMuscleFamily(originalCat?.target_muscle || originalCat?.name || "")
+
+      // Busca substituto do mesmo grupo muscular que não esteja bloqueado nem repetido na ficha
+      const replacement =
+        catalog.find(
+          c =>
+            !dislikedIds.has(c.id) &&
+            !usedInWorkout.has(c.id) &&
+            getMuscleFamily(c.target_muscle || c.name) === targetFamily
+        ) ||
+        catalog.find(c => !dislikedIds.has(c.id) && !usedInWorkout.has(c.id))
+
+      if (replacement) {
+        usedInWorkout.delete(ex.exercise_id)
+        usedInWorkout.add(replacement.id)
+        return {
+          ...ex,
+          exercise_id: replacement.id
+        }
+      }
+      return ex
+    }).filter(ex => !dislikedIds.has(ex.exercise_id))
+  }
+
+  // 2. Garante que TODOS os exercícios que o aluno MAIS GOSTA estejam incluídos na ficha correspondente ao grupo muscular
+  for (const likedEx of likedExercises) {
+    const alreadyInSomeWorkout = workouts.some(w =>
+      (w.exercises || []).some(e => e.exercise_id === likedEx.id)
+    )
+    if (alreadyInSomeWorkout) continue
+
+    const likedFamily = getMuscleFamily(likedEx.target_muscle || likedEx.name)
+
+    // Escolhe a ficha que melhor trabalha esse grupo muscular
+    let bestWorkoutIdx = 0
+    let bestScore = -1
+
+    workouts.forEach((w, idx) => {
+      let score = 0
+      const wNameNorm = normalizeText(w.workout_name)
+
+      if (likedFamily === "costas" && (wNameNorm.includes("costas") || wNameNorm.includes("dorsal") || wNameNorm.includes("pull") || wNameNorm.includes("superior"))) score += 10
+      if (likedFamily === "peito" && (wNameNorm.includes("peito") || wNameNorm.includes("peitoral") || wNameNorm.includes("push") || wNameNorm.includes("superior"))) score += 10
+      if (likedFamily === "ombros" && (wNameNorm.includes("ombro") || wNameNorm.includes("deltoide") || wNameNorm.includes("push") || wNameNorm.includes("superior"))) score += 10
+      if (likedFamily === "biceps" && (wNameNorm.includes("biceps") || wNameNorm.includes("braco") || wNameNorm.includes("costas") || wNameNorm.includes("pull") || wNameNorm.includes("superior"))) score += 10
+      if (likedFamily === "triceps" && (wNameNorm.includes("triceps") || wNameNorm.includes("braco") || wNameNorm.includes("peito") || wNameNorm.includes("push") || wNameNorm.includes("superior"))) score += 10
+      if (likedFamily === "gluteos" && (wNameNorm.includes("gluteo") || wNameNorm.includes("posterior") || wNameNorm.includes("inferior") || wNameNorm.includes("perna") || wNameNorm.includes("legs"))) score += 10
+      if (likedFamily === "posterior" && (wNameNorm.includes("posterior") || wNameNorm.includes("isquio") || wNameNorm.includes("gluteo") || wNameNorm.includes("perna") || wNameNorm.includes("inferior"))) score += 10
+      if (likedFamily === "pernas" && (wNameNorm.includes("quadriceps") || wNameNorm.includes("perna") || wNameNorm.includes("legs") || wNameNorm.includes("inferior"))) score += 10
+      if (likedFamily === "abdomen" && (wNameNorm.includes("abdomen") || wNameNorm.includes("core"))) score += 8
+
+      for (const ex of w.exercises || []) {
+        const c = catalogById.get(ex.exercise_id)
+        if (c && getMuscleFamily(c.target_muscle || c.name) === likedFamily) {
+          score += 3
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score
+        bestWorkoutIdx = idx
+      }
+    })
+
+    const targetWorkout = workouts[bestWorkoutIdx]
+    if (!targetWorkout) continue
+
+    const isCompoundLiked =
+      normalizeText(likedEx.name).includes("barra fixa") ||
+      normalizeText(likedEx.name).includes("supino") ||
+      normalizeText(likedEx.name).includes("agachamento") ||
+      normalizeText(likedEx.name).includes("leg press") ||
+      normalizeText(likedEx.name).includes("elevacao pelvica") ||
+      normalizeText(likedEx.name).includes("terra") ||
+      normalizeText(likedEx.name).includes("remada") ||
+      normalizeText(likedEx.name).includes("desenvolvimento")
+
+    const newEntry: GeneratedExerciseItem = {
+      exercise_id: likedEx.id,
+      default_sets: isCompoundLiked ? goalParams.compoundSets : goalParams.isolationSets,
+      default_reps: isCompoundLiked ? goalParams.compoundReps : goalParams.isolationReps,
+      is_superset: false
+    }
+
+    // Procura na ficha escolhida um exercício do mesmo grupo muscular (que não seja outro favorito) para substituir mantendo o equilíbrio de volume, ou adiciona no início do grupo
+    const replaceIdx = targetWorkout.exercises.findIndex(e => {
+      if (likedIds.has(e.exercise_id)) return false
+      const c = catalogById.get(e.exercise_id)
+      return c && getMuscleFamily(c.target_muscle || c.name) === likedFamily
+    })
+
+    if (replaceIdx !== -1) {
+      targetWorkout.exercises[replaceIdx] = {
+        ...newEntry,
+        is_superset: targetWorkout.exercises[replaceIdx].is_superset
+      }
+    } else {
+      // Se for multiarticular vai para o início da ficha, se for isolador entra antes do abdômen/panturrilha
+      if (isCompoundLiked) {
+        targetWorkout.exercises.unshift(newEntry)
+        if (targetWorkout.exercises.length > 8) {
+          targetWorkout.exercises.pop()
+        }
+      } else {
+        targetWorkout.exercises.push(newEntry)
+      }
+    }
+  }
+
+  return workouts
+}
+
+function findExId(
+  catalog: CatalogExercise[],
+  keywords: string[],
+  fallbackMuscle?: string,
+  dislikedIds?: Set<string>
+): string {
   for (const kw of keywords) {
-    const k = kw.toLowerCase()
-    const exact = catalog.find(e => e.name.toLowerCase() === k)
+    const k = normalizeText(kw)
+    const exact = catalog.find(e => !dislikedIds?.has(e.id) && normalizeText(e.name) === k)
     if (exact) return exact.id
-    const partial = catalog.find(e => e.name.toLowerCase().includes(k))
+    const partial = catalog.find(e => !dislikedIds?.has(e.id) && normalizeText(e.name).includes(k))
     if (partial) return partial.id
   }
   if (fallbackMuscle) {
-    const fm = fallbackMuscle.toLowerCase()
-    const byMuscle = catalog.find(e => e.target_muscle.toLowerCase().includes(fm))
+    const fm = normalizeText(fallbackMuscle)
+    const byMuscle = catalog.find(e => !dislikedIds?.has(e.id) && normalizeText(e.target_muscle).includes(fm))
     if (byMuscle) return byMuscle.id
   }
-  return catalog[0]?.id || ""
+  const firstAllowed = catalog.find(e => !dislikedIds?.has(e.id))
+  return firstAllowed?.id || catalog[0]?.id || ""
 }
 
 function computeNextLevel(currentLevel: string, isEvolution?: boolean): {
@@ -257,6 +526,8 @@ function buildProfessionalWorkoutPlan(
     }
   }
 
+  const prefs = resolveStudentExercisePreferences(formData, catalog)
+
   const exItem = (
     keywords: string[],
     sets: number,
@@ -264,7 +535,7 @@ function buildProfessionalWorkoutPlan(
     isSuperset = false,
     fallbackMuscle = "Geral"
   ): GeneratedExerciseItem => ({
-    exercise_id: findExId(catalog, keywords, fallbackMuscle),
+    exercise_id: findExId(catalog, keywords, fallbackMuscle, prefs.dislikedIds),
     default_sets: sets,
     default_reps: reps,
     is_superset: isSuperset
@@ -678,11 +949,23 @@ function buildProfessionalWorkoutPlan(
     ? "Periodização Feminina Especializada: divisão de membros inferiores separando ênfase em Quadríceps/Adutores e ênfase em Glúteos (Máximo e Médio)/Posteriores de Coxa, combinada com treino de superiores voltado para definição estética, postura e cintura."
     : "Periodização Masculina Especializada: foco em densidade de Peitoral, expansão de Dorsais em V, Deltoides tridimensionais, volume de Braços e base sólida de Membros Inferiores."
 
+  // Aplica rigorosamente a inclusão dos exercícios que o aluno MAIS GOSTA e exclusão dos que NÃO GOSTA
+  enforceExercisePreferences(workouts, catalog, prefs.likedExercises, prefs.dislikedIds, goalParams)
+
+  const prefsNotes: string[] = []
+  if (prefs.likedNames.length > 0) {
+    prefsNotes.push(`Incluídos seus favoritos: ${prefs.likedNames.join(", ")}`)
+  }
+  if (prefs.dislikedNames.length > 0) {
+    prefsNotes.push(`Excluídos conforme preferência: ${prefs.dislikedNames.join(", ")}`)
+  }
+  const prefsSummarySuffix = prefsNotes.length > 0 ? ` (${prefsNotes.join(" • ")})` : ""
+
   const evolutionSummaryText = isEvolution
     ? `Nova Ficha de Evolução (Ciclo ${formData.cycleNumber || 2} • Nível ${levelLabel}): progressão estruturada a partir do histórico da sua ficha anterior${
         prevWeightRecords.length > 0 ? ` (considerando suas cargas em ${prevWeightRecords.slice(0, 4).join(", ")})` : ""
-      }. Foram introduzidos novos ângulos biomecânicos, ajustes de volume (${goalParams.compoundSets} séries nos multiarticulares com meta de ${goalParams.compoundReps} reps) e estímulos mais avançados para quebrar platôs.`
-    : `Ficha planejada sob medida para ${levelLabel} com foco em ${goalParams.goalTitle}. Validade programada de 30 dias para adaptação neural e progressão de cargas.`
+      }. Foram introduzidos novos ângulos biomecânicos, ajustes de volume (${goalParams.compoundSets} séries nos multiarticulares com meta de ${goalParams.compoundReps} reps) e estímulos mais avançados para quebrar platôs.${prefsSummarySuffix}`
+    : `Ficha planejada sob medida para ${levelLabel} com foco em ${goalParams.goalTitle}. Validade programada de 30 dias para adaptação neural e progressão de cargas.${prefsSummarySuffix}`
 
   return {
     workouts,
@@ -753,6 +1036,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Erro ao carregar catálogo de exercícios" }, { status: 500 })
     }
 
+    const prefs = resolveStudentExercisePreferences(formData, catalog)
+
     // Construímos imediatamente a base profissional determinística (Periodização & Biomecânica)
     const expertPlan = buildProfessionalWorkoutPlan(formData, catalog)
     const isFemale = (formData.genero || "").toLowerCase().trim() === "feminino"
@@ -768,9 +1053,22 @@ export async function POST(req: Request) {
       })
     }
 
-    const catalogString = catalog
+    // Filtra do catálogo enviado à IA qualquer exercício que o aluno NÃO GOSTA
+    const allowedCatalog = catalog.filter(e => !prefs.dislikedIds.has(e.id))
+    const catalogString = allowedCatalog
       .map(e => `[ID: ${e.id}] ${e.name} (Músculo: ${e.target_muscle})`)
       .join("\n")
+
+    const preferencesPromptSection = `
+PREFERÊNCIAS DIRETAS DE EXERCÍCIOS DO ALUNO (OBRIGATÓRIO CUMPRIR):
+- EXERCÍCIOS QUE O ALUNO MAIS GOSTA (INCLUIR OBRIGATORIAMENTE NA FICHA DO RESPECTIVO MÚSCULO): ${
+      prefs.likedExercises.length > 0
+        ? prefs.likedExercises.map(e => `[ID: ${e.id}] ${e.name} (${e.target_muscle})`).join(" | ")
+        : "Nenhum específico exigido"
+    }
+- EXERCÍCIOS QUE O ALUNO NÃO GOSTA / QUER EVITAR (JAMAIS COLOCAR NA FICHA): ${
+      prefs.dislikedNames.length > 0 ? prefs.dislikedNames.join(", ") : "Nenhum"
+    }`
 
     const historyContext =
       isEvolution && Array.isArray(formData.previousWorkouts) && formData.previousWorkouts.length > 0
@@ -811,7 +1109,8 @@ Perfil Completo do Aluno:
 - Frequência Semanal: ${formData.diasPorSemana || 3} dias por semana
 - Tempo por Sessão: ${formData.tempoPorTreino || 45} minutos
 - Lesões ou Restrições: ${formData.lesoes || "Nenhuma"}
-- Preferências / Observações: ${formData.observacoes || "Nenhuma"}
+- Observações Extras: ${formData.observacoes || "Nenhuma"}
+${preferencesPromptSection}
 ${historyContext}
 
 ${genderRules}
@@ -869,7 +1168,14 @@ FORMATO EXATO DE SAÍDA (Array JSON):
         if (!isAiPlanQualityValid(parsed, catalog, isFemale)) {
           throw new Error("Plano da IA não atingiu os critérios biomecânicos de especificidade")
         }
-        return parsed as GeneratedWorkout[]
+        // Garante que a resposta da IA inclua todos os exercícios favoritos e remova qualquer um que o aluno não gosta
+        return enforceExercisePreferences(
+          parsed as GeneratedWorkout[],
+          catalog,
+          prefs.likedExercises,
+          prefs.dislikedIds,
+          goalParams
+        )
       } catch (e) {
         clearTimeout(timeoutId)
         throw e

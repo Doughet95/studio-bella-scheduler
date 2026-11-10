@@ -87,6 +87,8 @@ export default function DashboardPage() {
   const [evoDays, setEvoDays] = useState<string>("3")
   const [evoTime, setEvoTime] = useState<string>("45")
   const [evoNotes, setEvoNotes] = useState<string>("")
+  const [evoLikedExercises, setEvoLikedExercises] = useState<string>("")
+  const [evoDislikedExercises, setEvoDislikedExercises] = useState<string>("")
 
   const getNextLevelLabel = (lvl: string) => {
     const n = (lvl || "iniciante").toLowerCase()
@@ -155,6 +157,16 @@ export default function DashboardPage() {
       setEvoDays(resolvedDays)
       setEvoTime(resolvedTime)
       setEvoNotes(savedOnboarding.observacoes || "")
+      setEvoLikedExercises(
+        Array.isArray(savedOnboarding.exerciciosQueGosta)
+          ? savedOnboarding.exerciciosQueGosta.join(", ")
+          : savedOnboarding.exerciciosQueGosta || ""
+      )
+      setEvoDislikedExercises(
+        Array.isArray(savedOnboarding.exerciciosQueNaoGosta)
+          ? savedOnboarding.exerciciosQueNaoGosta.join(", ")
+          : savedOnboarding.exerciciosQueNaoGosta || ""
+      )
 
       setCycleMeta(
         savedCycle || {
@@ -318,6 +330,15 @@ export default function DashboardPage() {
       const savedProfile = meta.onboarding_profile || {}
       const nextCycleNumber = (Number(cycleMeta?.cycle_number) || 1) + 1
 
+      const likedArr = evoLikedExercises
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean)
+      const dislikedArr = evoDislikedExercises
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean)
+
       const payload = {
         ...savedProfile,
         genero: evoGender,
@@ -326,6 +347,8 @@ export default function DashboardPage() {
         diasPorSemana: evoDays,
         tempoPorTreino: evoTime,
         observacoes: evoNotes,
+        exerciciosQueGosta: likedArr,
+        exerciciosQueNaoGosta: dislikedArr,
         isEvolution: true,
         cycleNumber: nextCycleNumber,
         previousWorkouts: previousSummary
@@ -450,7 +473,9 @@ export default function DashboardPage() {
             experiencia: newLevel,
             diasPorSemana: evoDays,
             tempoPorTreino: evoTime,
-            observacoes: evoNotes
+            observacoes: evoNotes,
+            exerciciosQueGosta: likedArr,
+            exerciciosQueNaoGosta: dislikedArr
           },
           workout_plan_cycle: newCycleMeta
         }
@@ -955,6 +980,34 @@ export default function DashboardPage() {
                         <option value="45">Padrão (45-60 min)</option>
                         <option value="90">Completo (+60 min)</option>
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-emerald-300">
+                        ✅ Exercícios que MAIS GOSTA (Incluir)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Barra Fixa, Elevação Pélvica..."
+                        value={evoLikedExercises}
+                        onChange={e => setEvoLikedExercises(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-emerald-500/30 bg-zinc-900 px-3 py-1 text-xs text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-rose-300">
+                        🚫 Exercícios que NÃO GOSTA (Evitar)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Levantamento Terra, Agachamento Livre..."
+                        value={evoDislikedExercises}
+                        onChange={e => setEvoDislikedExercises(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-rose-500/30 bg-zinc-900 px-3 py-1 text-xs text-white"
+                      />
                     </div>
                   </div>
 
