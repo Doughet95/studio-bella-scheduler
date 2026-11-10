@@ -49,12 +49,75 @@ function getBiomechanicsGuide(exerciseName: string, targetMuscle: string): {
     }
   }
 
-  if (n.includes("stiff") || n.includes("terra") || n.includes("levantamento")) {
+  if (n.includes("elevação pélvica") || n.includes("elevacao pelvica")) {
+    return {
+      execution:
+        "Apoie a borda inferior das escápulas no banco, posicione os pés de modo que as tíbias fiquem verticais (90° nos joelhos) no topo da subida e mantenha o queixo levemente recolhido olhando à frente. Suba estendendo o quadril com contração máxima dos glúteos por 1 a 2 segundos no topo.",
+      safety:
+        "Evite hiperestender a coluna lombar no topo do movimento: a força deve vir da extensão do quadril com leve retroversão pélvica ('encaixe do quadril'), mantendo as costelas baixas e o abdômen firme."
+    }
+  }
+
+  if (n.includes("búlgaro") || n.includes("bulgaro") || n.includes("afundo") || n.includes("passada") || n.includes("recuo")) {
+    return {
+      execution:
+        "Para maior foco nos glúteos, incline levemente o tronco à frente mantendo a coluna neutra e concentre toda a força no calcanhar da perna da frente; para maior foco no quadríceps, mantenha o tronco mais vertical. Desça controladamente em 2 a 3 segundos.",
+      safety:
+        "Mantenha o joelho da frente alinhado com o segundo dedo do pé, evitando que ele colapse para dentro (valgo dinâmico). A perna de trás serve apenas como apoio de equilíbrio."
+    }
+  }
+
+  if (n.includes("abdutora") || n.includes("abdução") || n.includes("abducao")) {
+    return {
+      execution:
+        "Concentre a força em empurrar os apoios com a parte lateral dos joelhos/coxas, sustentando 1 segundo no ponto de abertura máxima para recrutar profundamente o glúteo médio e mínimo, e retorne controlando o peso por 2 a 3 segundos.",
+      safety:
+        "Evite soltar o peso bruscamente na volta ou dar trancos com a lombar. Mantenha a pelve estável e os pés firmes no apoio durante toda a série."
+    }
+  }
+
+  if (n.includes("adutora") || n.includes("adução") || n.includes("aducao")) {
+    return {
+      execution:
+        "Inicie com uma amplitude de abertura confortável e segura, aproxime as coxas contraindo a musculatura interna (adutores) com pausa de 1 segundo no fechamento e controle a fase excêntrica de abertura.",
+      safety:
+        "Jamais force uma abertura além da sua mobilidade articular ou deixe os pesos puxarem suas pernas de forma brusca na abertura, prevenindo estiramentos inguinais."
+    }
+  }
+
+  if (n.includes("coice") || n.includes("glúteo na polia") || n.includes("gluteo na polia") || n.includes("4 apoios") || n.includes("romano")) {
+    return {
+      execution:
+        "Mantenha o tronco e a pelve completamente imóveis e realize a extensão do quadril levando a perna para trás até sentir a contração máxima do glúteo máximo, segurando 1s no pico antes de retornar devagar.",
+      safety:
+        "Não compense subindo a perna além do limite da extensão do quadril às custas de arquear a coluna lombar. Amplitude limpa e sem roubo gera muito mais hipertrofia no glúteo."
+    }
+  }
+
+  if (n.includes("panturrilha")) {
+    return {
+      execution:
+        "Desça os calcanhares até sentir o alongamento completo da panturrilha (pausa de 1s embaixo para dissipar o reflexo elástico do tendão) e suba na ponta dos pés contraindo forte por 1 a 2 segundos no topo.",
+      safety:
+        "Evite fazer repetições curtas e rápidas ('quicando' o peso). O controle completo nos dois extremos da amplitude protege o tendão calcâneo e maximiza o estímulo muscular."
+    }
+  }
+
+  if (n.includes("abdominal") || n.includes("prancha") || n.includes("core") || n.includes("infra") || n.includes("supra")) {
+    return {
+      execution:
+        "Foque na flexão da coluna torácica aproximando as costelas da pelve (ou na contração isométrica profunda do transverso abdominal na prancha), soltando todo o ar no pico da contração.",
+      safety:
+        "Evite puxar o pescoço com as mãos ou deixar a lombar desabar (hiperlordose) durante a fadiga. Mantenha o controle respiratório e a pelve estabilizada."
+    }
+  }
+
+  if (n.includes("stiff") || n.includes("terra") || n.includes("levantamento") || n.includes("bom dia")) {
     return {
       execution:
         "Realize o movimento como uma dobradiça de quadril (hip hinge): projete o quadril para trás mantendo os joelhos levemente semiflexionados e a barra/halteres rente às pernas durante todo o trajeto.",
       safety:
-        "Mantenha as escápulas firmes e a coluna vertebral totalmente neutra. Desça apenas até o ponto em que sente o alongamento máximo dos posteriores de coxa sem arredondar a lombar."
+        "Mantenha as escápulas firmes e a coluna vertebral totalmente neutra. Desça apenas até o ponto em que sente o alongamento máximo dos posteriores de coxa e glúteos sem arredondar a lombar."
     }
   }
 

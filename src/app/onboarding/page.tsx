@@ -1,13 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
-import { Sparkles, ArrowRight, ArrowLeft, Loader2, Dumbbell, Activity, Calendar, HeartPulse } from "lucide-react"
+import { Sparkles, ArrowRight, ArrowLeft, Loader2, Dumbbell, Activity, Calendar, HeartPulse, CheckCircle2 } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 
 import { supabase } from "@/lib/supabase"
@@ -16,16 +15,18 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  
+  const [replaceExisting, setReplaceExisting] = useState(true)
+  const [hasExistingWorkouts, setHasExistingWorkouts] = useState(false)
+
   const [formData, setFormData] = useState({
     idade: "",
     peso: "",
     altura: "",
     genero: "",
-    objetivos: [] as string[],
-    experiencia: "",
-    diasPorSemana: "",
-    tempoPorTreino: "",
+    objetivos: ["hipertrofia"] as string[],
+    experiencia: "iniciante",
+    diasPorSemana: "3",
+    tempoPorTreino: "45",
     lesoes: "",
     observacoes: "",
     medidas_braco: "",
@@ -39,103 +40,290 @@ export default function OnboardingPage() {
     dieta_agua: ""
   })
 
-  const handleNext = () => setStep(s => s + 1)
+  useEffect(() => {
+    async function loadExistingProfile() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const meta = session.user.user_metadata || {}
+      const savedProfile = meta.onboarding_profile || {}
+
+      setFormData(prev => ({
+        ...prev,
+        idade: savedProfile.idade || (meta.age ? String(meta.age) : prev.idade),
+        peso: savedProfile.peso || prev.peso,
+        altura: savedProfile.altura || (meta.height_cm ? String(meta.height_cm) : prev.altura),
+        genero: savedProfile.genero || meta.workout_plan_cycle?.gender || prev.genero,
+        objetivos:
+          Array.isArray(savedProfile.objetivos) && savedProfile.objetivos.length > 0
+            ? savedProfile.objetivos
+            : prev.objetivos,
+        experiencia: savedProfile.experiencia || meta.workout_plan_cycle?.current_level || prev.experiencia,
+        diasPorSemana: savedProfile.diasPorSemana || prev.diasPorSemana,
+        tempoPorTreino: savedProfile.tempoPorTreino || prev.tempoPorTreino,
+        lesoes: savedProfile.lesoes || prev.lesoes,
+        observacoes: savedProfile.observacoes || prev.observacoes
+      }))
+
+      const { count } = await supabase
+        .from("workouts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.user.id)
+
+      if (count && count > 0) {
+        setHasExistingWorkouts(true)
+      }
+    }
+    loadExistingProfile()
+  }, [])
+
+  const handleNext = () => {
+    if (step === 1 && !formData.genero) {
+      alert("Por favor, selecione o seu Gênero (Masculino ou Feminino) para que a IA monte a biomecânica correta para o seu corpo.")
+      return
+    }
+    if (step === 2 && formData.objetivos.length === 0) {
+      alert("Selecione pelo menos um objetivo principal.")
+      return
+    }
+    setStep(s => s + 1)
+  }
+
   const handlePrev = () => setStep(s => s - 1)
 
   const handleGenerate = async () => {
+    if (!formData.genero) {
+      alert("Selecione o gênero no Passo 1 antes de gerar a ficha.")
+      setStep(1)
+      return
+    }
+
     setLoading(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert("Você precisa estar logado para criar treinos.");
-        setLoading(false);
-        router.push('/');
-        return;
+        alert("Você precisa estar logado para criar treinos.")
+        setLoading(false)
+        router.push("/")
+        return
       }
 
-      // 1. Chamar a IA
-      const res = await fetch('/api/generate-workout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      // 1. Chamar a IA Especialista em Periodização
+      const res = await fetch("/api/generate-workout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       })
-      
-      const plan = await res.json()
-      
-      if (plan.error) {
-        alert("Erro na IA: " + plan.error)
+
+      const planResponse = await res.json()
+
+      if (planResponse.error) {
+        alert("Erro na IA: " + planResponse.error)
         setLoading(false)
         return
       }
 
-      // 2. Salvar Fichas no Supabase (o plano agora é um Array de fichas)
-      const workoutsArray = Array.isArray(plan) ? plan : [plan];
+      const workoutsArray = Array.isArray(planResponse)
+        ? planResponse
+        : Array.isArray(planResponse.workouts)
+        ? planResponse.workouts
+        : [planResponse]
 
-      for (const w of workoutsArray) {
-        const { data: workout, error: workoutError } = await supabase
-          .from('workouts')
-          .insert([{ 
-            name: w.workout_name || "Treino IA",
-            days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(',')}}` : null,
-            user_id: session.user.id
-          }])
-          .select()
-          .single()
+      const metaInfo = planResponse.meta || null
 
-        if (workoutError) {
-          console.error(workoutError);
-          alert("Erro ao salvar no banco: " + workoutError.message + ". Você rodou o script SQL?");
+      // Se o usuário optou por substituir as fichas atuais ao gerar um novo ciclo completo
+      if (hasExistingWorkouts && replaceExisting) {
+        const { data: oldWorkouts } = await supabase
+          .from("workouts")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: true })
+
+        if (oldWorkouts && oldWorkouts.length > 0) {
+          // Atualiza in-place as fichas existentes (preservando vínculo de histórico) e cria/remove a diferença
+          const minLen = Math.min(oldWorkouts.length, workoutsArray.length)
+          for (let i = 0; i < minLen; i++) {
+            const w = workoutsArray[i]
+            const targetId = oldWorkouts[i].id
+            await supabase
+              .from("workouts")
+              .update({
+                name: w.workout_name || "Treino IA",
+                days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(",")}}` : null
+              })
+              .eq("id", targetId)
+
+            await supabase.from("workout_exercises").delete().eq("workout_id", targetId)
+
+            if (Array.isArray(w.exercises) && w.exercises.length > 0) {
+              const exercisesToInsert = w.exercises.map((ex: any, idx: number) => ({
+                workout_id: targetId,
+                exercise_id: ex.exercise_id,
+                default_sets: ex.default_sets || 3,
+                default_reps: ex.default_reps || "10-12",
+                order_index: idx,
+                is_superset: Boolean(ex.is_superset)
+              }))
+              await supabase.from("workout_exercises").insert(exercisesToInsert)
+            }
+          }
+
+          // Se o novo plano tem mais fichas que o anterior, insere as novas
+          for (let i = minLen; i < workoutsArray.length; i++) {
+            const w = workoutsArray[i]
+            const { data: workout } = await supabase
+              .from("workouts")
+              .insert([
+                {
+                  name: w.workout_name || "Treino IA",
+                  days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(",")}}` : null,
+                  user_id: session.user.id
+                }
+              ])
+              .select()
+              .single()
+
+            if (workout && Array.isArray(w.exercises)) {
+              const exercisesToInsert = w.exercises.map((ex: any, idx: number) => ({
+                workout_id: workout.id,
+                exercise_id: ex.exercise_id,
+                default_sets: ex.default_sets || 3,
+                default_reps: ex.default_reps || "10-12",
+                order_index: idx,
+                is_superset: Boolean(ex.is_superset)
+              }))
+              await supabase.from("workout_exercises").insert(exercisesToInsert)
+            }
+          }
+
+          // Se o plano antigo tinha fichas sobrando além do novo plano, remove-as com limpeza segura
+          for (let i = workoutsArray.length; i < oldWorkouts.length; i++) {
+            const extraId = oldWorkouts[i].id
+            await supabase.from("workout_exercises").delete().eq("workout_id", extraId)
+            const { data: oldSessions } = await supabase.from("workout_sessions").select("id").eq("workout_id", extraId)
+            if (oldSessions && oldSessions.length > 0) {
+              const sIds = oldSessions.map(s => s.id)
+              await supabase.from("exercise_logs").delete().in("session_id", sIds)
+              await supabase.from("workout_sessions").delete().eq("workout_id", extraId)
+            }
+            await supabase.from("workouts").delete().eq("id", extraId)
+          }
         }
+      } else {
+        // 2. Salvar novas Fichas no Supabase
+        for (const w of workoutsArray) {
+          const { data: workout, error: workoutError } = await supabase
+            .from("workouts")
+            .insert([
+              {
+                name: w.workout_name || "Treino IA",
+                days_of_week: w.days_of_week && w.days_of_week.length > 0 ? `{${w.days_of_week.join(",")}}` : null,
+                user_id: session.user.id
+              }
+            ])
+            .select()
+            .single()
 
-        if (!workoutError && workout && w.exercises) {
-          // 3. Vincular exercícios daquela ficha
-          const exercisesToInsert = w.exercises.map((ex: any, idx: number) => ({
-            workout_id: workout.id,
-            exercise_id: ex.exercise_id,
-            default_sets: ex.default_sets || 3,
-            default_reps: ex.default_reps || "10-12",
-            order_index: idx,
-            is_superset: false
-          }))
-          await supabase.from('workout_exercises').insert(exercisesToInsert)
+          if (workoutError) {
+            console.error(workoutError)
+            alert("Erro ao salvar no banco: " + workoutError.message)
+          }
+
+          if (!workoutError && workout && w.exercises) {
+            const exercisesToInsert = w.exercises.map((ex: any, idx: number) => ({
+              workout_id: workout.id,
+              exercise_id: ex.exercise_id,
+              default_sets: ex.default_sets || 3,
+              default_reps: ex.default_reps || "10-12",
+              order_index: idx,
+              is_superset: Boolean(ex.is_superset)
+            }))
+            await supabase.from("workout_exercises").insert(exercisesToInsert)
+          }
         }
       }
 
-      // 3.5 Salvar medidas iniciais no perfil do usuário (histórico de evolução)
+      // 3. Salvar perfil, medidas e ciclo de validade de 30 dias no user_metadata
       try {
         const parseNum = (v: string) => (v && !isNaN(Number(v)) ? Number(v) : null)
         const existingHistory = Array.isArray(session.user.user_metadata?.measurements_history)
           ? session.user.user_metadata.measurements_history
           : []
-        const initialEntry = {
-          id: String(Date.now()),
-          date: new Date().toISOString().split("T")[0],
-          created_at: new Date().toISOString(),
-          weight: parseNum(formData.peso),
-          arm: parseNum(formData.medidas_braco),
-          chest: parseNum(formData.medidas_peito),
-          waist: parseNum(formData.medidas_cintura),
-          thigh: parseNum(formData.medidas_coxa),
-          hips: parseNum(formData.medidas_quadril),
-          glutes: parseNum(formData.medidas_bumbum),
-          calf: null,
-          body_fat: null,
-          notes: "Avaliação no questionário IA"
-        }
+
+        const hasAnyMeasurement =
+          formData.peso ||
+          formData.medidas_braco ||
+          formData.medidas_peito ||
+          formData.medidas_cintura ||
+          formData.medidas_coxa ||
+          formData.medidas_quadril ||
+          formData.medidas_bumbum
+
+        const updatedMeasurementsHistory = hasAnyMeasurement
+          ? [
+              {
+                id: String(Date.now()),
+                date: new Date().toISOString().split("T")[0],
+                created_at: new Date().toISOString(),
+                weight: parseNum(formData.peso),
+                arm: parseNum(formData.medidas_braco),
+                chest: parseNum(formData.medidas_peito),
+                waist: parseNum(formData.medidas_cintura),
+                thigh: parseNum(formData.medidas_coxa),
+                hips: parseNum(formData.medidas_quadril),
+                glutes: parseNum(formData.medidas_bumbum),
+                calf: null,
+                body_fat: null,
+                notes: "Avaliação no questionário IA"
+              },
+              ...existingHistory
+            ]
+          : existingHistory
+
+        const nowIso = new Date().toISOString()
+        const expiresIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        const prevCycleNum = Number(session.user.user_metadata?.workout_plan_cycle?.cycle_number) || 0
+
         await supabase.auth.updateUser({
           data: {
             height_cm: parseNum(formData.altura) ?? session.user.user_metadata?.height_cm ?? "",
             age: parseNum(formData.idade) ?? session.user.user_metadata?.age ?? "",
-            measurements_history: [initialEntry, ...existingHistory]
+            measurements_history: updatedMeasurementsHistory,
+            onboarding_profile: {
+              idade: formData.idade,
+              peso: formData.peso,
+              altura: formData.altura,
+              genero: formData.genero,
+              objetivos: formData.objetivos,
+              experiencia: formData.experiencia,
+              diasPorSemana: formData.diasPorSemana,
+              tempoPorTreino: formData.tempoPorTreino,
+              lesoes: formData.lesoes,
+              observacoes: formData.observacoes
+            },
+            workout_plan_cycle: {
+              started_at: nowIso,
+              expires_at: expiresIso,
+              duration_days: 30,
+              cycle_number: prevCycleNum + 1,
+              current_level: metaInfo?.target_level || formData.experiencia || "iniciante",
+              level_label: metaInfo?.level_label || formData.experiencia || "Iniciante",
+              gender: formData.genero,
+              goals: formData.objetivos,
+              goal_title: metaInfo?.goal_title || "Hipertrofia",
+              evolution_summary: metaInfo?.evolution_summary || ""
+            }
           }
         })
-      } catch {}
+      } catch (err) {
+        console.warn("Aviso ao atualizar metadados do ciclo:", err)
+      }
 
-      // 4. Redirecionar
-      router.push('/dashboard')
+      // 4. Redirecionar para o Dashboard
+      router.push("/dashboard")
     } catch (e) {
       console.error(e)
-      alert("Falha ao gerar treino. Verifique a API Key do Gemini.")
+      alert("Falha ao gerar treino. Tente novamente.")
       setLoading(false)
     }
   }
@@ -143,53 +331,98 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="max-w-xl w-full">
-        
         {/* Progresso */}
         <div className="flex gap-2 mb-8 px-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className={`h-2 flex-1 rounded-full transition-colors ${step >= i ? 'bg-primary' : 'bg-primary/20'}`} />
+            <div
+              key={i}
+              className={`h-2 flex-1 rounded-full transition-colors ${step >= i ? "bg-primary" : "bg-primary/20"}`}
+            />
           ))}
         </div>
 
         <Card className="bg-card/40 border-border/50 shadow-2xl backdrop-blur-xl">
-          {/* PASSO 1: DADOS BÁSICOS */}
+          {/* PASSO 1: DADOS BÁSICOS & GÊNERO BIOMECÂNICO */}
           {step === 1 && (
             <>
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
                   <UserIcon />
                 </div>
-                <CardTitle className="text-2xl">Dados Pessoais</CardTitle>
-                <CardDescription>Para a IA entender seu biotipo e calcular necessidades.</CardDescription>
+                <CardTitle className="text-2xl">Perfil & Biomecânica</CardTitle>
+                <CardDescription>
+                  A IA adapta completamente a divisão muscular e a seleção de exercícios conforme o seu gênero e biotipo.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Idade</Label>
-                    <Input type="number" placeholder="Ex: 25" value={formData.idade} onChange={e => setFormData({...formData, idade: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gênero</Label>
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      value={formData.genero}
-                      onChange={e => setFormData({...formData, genero: e.target.value})}
+              <CardContent className="space-y-5 pt-4">
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-semibold">Gênero (Define a ênfase biomecânica da ficha) *</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, genero: "feminino" })}
+                      className={`p-3.5 rounded-xl border text-left transition-all ${
+                        formData.genero === "feminino"
+                          ? "border-primary bg-primary/20 text-white shadow-lg shadow-primary/20"
+                          : "border-border/60 bg-background/40 text-gray-300 hover:bg-white/5"
+                      }`}
                     >
-                      <option value="" disabled>Selecione...</option>
-                      <option value="masculino">Masculino</option>
-                      <option value="feminino">Feminino</option>
-                      <option value="outro">Outro</option>
-                    </select>
+                      <div className="font-bold text-base flex items-center justify-between">
+                        <span>Feminino</span>
+                        {formData.genero === "feminino" && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      </div>
+                      <p className="text-xs text-gray-300 mt-1">
+                        Ênfase diferenciada em Glúteos, Quadríceps, Posteriores, Abdômen e Superiores Estéticos.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, genero: "masculino" })}
+                      className={`p-3.5 rounded-xl border text-left transition-all ${
+                        formData.genero === "masculino"
+                          ? "border-primary bg-primary/20 text-white shadow-lg shadow-primary/20"
+                          : "border-border/60 bg-background/40 text-gray-300 hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="font-bold text-base flex items-center justify-between">
+                        <span>Masculino</span>
+                        {formData.genero === "masculino" && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      </div>
+                      <p className="text-xs text-gray-300 mt-1">
+                        Ênfase em densidade de Peitoral, Costas em V, Deltoides 3D, Braços e Pernas Pesadas.
+                      </p>
+                    </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Idade</Label>
+                    <Input
+                      type="number"
+                      placeholder="Ex: 25"
+                      value={formData.idade}
+                      onChange={e => setFormData({ ...formData, idade: e.target.value })}
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label>Peso (kg)</Label>
-                    <Input type="number" placeholder="Ex: 75.5" value={formData.peso} onChange={e => setFormData({...formData, peso: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 68.5"
+                      value={formData.peso}
+                      onChange={e => setFormData({ ...formData, peso: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Altura (cm)</Label>
-                    <Input type="number" placeholder="Ex: 175" value={formData.altura} onChange={e => setFormData({...formData, altura: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 168"
+                      value={formData.altura}
+                      onChange={e => setFormData({ ...formData, altura: e.target.value })}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -203,49 +436,79 @@ export default function OnboardingPage() {
                 <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
                   <Dumbbell className="w-6 h-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Objetivo Principal</CardTitle>
-                <CardDescription>O que você deseja alcançar com os treinos? (Selecione um ou mais)</CardDescription>
+                <CardTitle className="text-2xl">Objetivo & Nível Atual</CardTitle>
+                <CardDescription>
+                  A IA ajusta séries, faixas de repetições, técnicas de Bi-set e seleção de exercícios para o seu foco.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-4">
                 <div className="space-y-3">
-                  <Label>Qual o seu foco?</Label>
+                  <Label>Qual o seu foco principal?</Label>
                   <div className="space-y-2">
                     {[
-                      { id: "hipertrofia", label: "Hipertrofia (Ganho de Massa)" },
-                      { id: "emagrecimento", label: "Emagrecimento (Perda de Gordura)" },
-                      { id: "forca", label: "Força Absoluta" },
-                      { id: "resistencia", label: "Resistência e Condicionamento" }
+                      {
+                        id: "hipertrofia",
+                        label: "Hipertrofia (Ganho de Massa & Modelagem)",
+                        desc: "Séries de 8 a 12 reps com foco em tensão mecânica e volume muscular."
+                      },
+                      {
+                        id: "emagrecimento",
+                        label: "Emagrecimento & Definição Muscular",
+                        desc: "Séries dinâmicas de 12 a 15+ reps com Bi-sets metabólicos e foco em gasto calórico."
+                      },
+                      {
+                        id: "forca",
+                        label: "Força Absoluta & Progressão de Carga",
+                        desc: "Séries de 5 a 8 reps nos multiarticulares básicos para ganho máximo de força."
+                      },
+                      {
+                        id: "resistencia",
+                        label: "Resistência Muscular & Condicionamento",
+                        desc: "Séries de 15 a 20 reps focadas em vigor físico, estabilidade articular e Core."
+                      }
                     ].map(obj => (
-                      <label key={obj.id} className="flex items-center space-x-3 border p-3 rounded-lg border-border/50 cursor-pointer hover:bg-primary/5 transition-colors">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 text-primary bg-background border-primary/50 rounded focus:ring-primary"
+                      <label
+                        key={obj.id}
+                        className={`flex items-start space-x-3 border p-3 rounded-lg cursor-pointer transition-colors ${
+                          formData.objetivos.includes(obj.id)
+                            ? "border-primary bg-primary/10"
+                            : "border-border/50 hover:bg-primary/5"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 mt-1 text-primary bg-background border-primary/50 rounded focus:ring-primary"
                           checked={formData.objetivos.includes(obj.id)}
-                          onChange={(e) => {
+                          onChange={e => {
                             if (e.target.checked) {
-                              setFormData({ ...formData, objetivos: [...formData.objetivos, obj.id] });
+                              setFormData({ ...formData, objetivos: [...formData.objetivos, obj.id] })
                             } else {
-                              setFormData({ ...formData, objetivos: formData.objetivos.filter(o => o !== obj.id) });
+                              setFormData({ ...formData, objetivos: formData.objetivos.filter(o => o !== obj.id) })
                             }
                           }}
                         />
-                        <span className="font-medium flex-1">{obj.label}</span>
+                        <div className="flex-1">
+                          <span className="font-semibold block text-sm text-white">{obj.label}</span>
+                          <span className="text-xs text-gray-300">{obj.desc}</span>
+                        </div>
                       </label>
                     ))}
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <Label>Qual o seu nível de experiência?</Label>
-                  <select 
+                  <Label>Qual o seu nível de experiência atual?</Label>
+                  <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     value={formData.experiencia}
-                    onChange={e => setFormData({...formData, experiencia: e.target.value})}
+                    onChange={e => setFormData({ ...formData, experiencia: e.target.value })}
                   >
-                    <option value="" disabled>Selecione...</option>
-                    <option value="iniciante">Iniciante (Nunca treinei ou treino há menos de 6 meses)</option>
-                    <option value="intermediario">Intermediário (Treino de forma consistente há +6 meses)</option>
-                    <option value="avancado">Avançado (Treino pesado há mais de 2 anos)</option>
+                    <option value="iniciante">Iniciante (Adaptação / Menos de 6 meses)</option>
+                    <option value="intermediario">Intermediário (Treino consistente há +6 meses)</option>
+                    <option value="avancado">Avançado (Treino intenso há mais de 2 anos)</option>
                   </select>
+                  <p className="text-xs text-gray-300">
+                    📅 Sua ficha terá validade de <strong>30 dias</strong>. Ao final do ciclo, a IA poderá evoluir seu treino para o próximo nível usando seu histórico de cargas!
+                  </p>
                 </div>
               </CardContent>
             </>
@@ -265,31 +528,61 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Braço (cm)</Label>
-                    <Input type="number" placeholder="Ex: 35" value={formData.medidas_braco} onChange={e => setFormData({...formData, medidas_braco: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 35"
+                      value={formData.medidas_braco}
+                      onChange={e => setFormData({ ...formData, medidas_braco: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Peito/Busto (cm)</Label>
-                    <Input type="number" placeholder="Ex: 100" value={formData.medidas_peito} onChange={e => setFormData({...formData, medidas_peito: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 96"
+                      value={formData.medidas_peito}
+                      onChange={e => setFormData({ ...formData, medidas_peito: e.target.value })}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Cintura (cm)</Label>
-                    <Input type="number" placeholder="Ex: 80" value={formData.medidas_cintura} onChange={e => setFormData({...formData, medidas_cintura: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 74"
+                      value={formData.medidas_cintura}
+                      onChange={e => setFormData({ ...formData, medidas_cintura: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Quadril (cm)</Label>
-                    <Input type="number" placeholder="Ex: 105" value={formData.medidas_quadril} onChange={e => setFormData({...formData, medidas_quadril: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 102"
+                      value={formData.medidas_quadril}
+                      onChange={e => setFormData({ ...formData, medidas_quadril: e.target.value })}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Coxa (cm)</Label>
-                    <Input type="number" placeholder="Ex: 60" value={formData.medidas_coxa} onChange={e => setFormData({...formData, medidas_coxa: e.target.value})} />
+                    <Input
+                      type="number"
+                      placeholder="Ex: 58"
+                      value={formData.medidas_coxa}
+                      onChange={e => setFormData({ ...formData, medidas_coxa: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Bumbum (cm)</Label>
-                    <Input type="number" placeholder="Ex: 110" value={formData.medidas_bumbum} onChange={e => setFormData({...formData, medidas_bumbum: e.target.value})} />
+                    <Label>Glúteo / Bumbum (cm)</Label>
+                    <Input
+                      type="number"
+                      placeholder="Ex: 105"
+                      value={formData.medidas_bumbum}
+                      onChange={e => setFormData({ ...formData, medidas_bumbum: e.target.value })}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -309,20 +602,31 @@ export default function OnboardingPage() {
               <CardContent className="space-y-6 pt-4">
                 <div className="space-y-2">
                   <Label>Quantas refeições você faz por dia em média?</Label>
-                  <Input type="number" placeholder="Ex: 4" value={formData.dieta_refeicoes} onChange={e => setFormData({...formData, dieta_refeicoes: e.target.value})} />
+                  <Input
+                    type="number"
+                    placeholder="Ex: 4"
+                    value={formData.dieta_refeicoes}
+                    onChange={e => setFormData({ ...formData, dieta_refeicoes: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Quantos litros de água você bebe por dia?</Label>
-                  <Input type="number" step="0.1" placeholder="Ex: 2.5" value={formData.dieta_agua} onChange={e => setFormData({...formData, dieta_agua: e.target.value})} />
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 2.5"
+                    value={formData.dieta_agua}
+                    onChange={e => setFormData({ ...formData, dieta_agua: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-3">
                   <Label>Consome muito doce, frituras ou açúcar?</Label>
-                  <select 
+                  <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     value={formData.dieta_doces_frituras}
-                    onChange={e => setFormData({...formData, dieta_doces_frituras: e.target.value})}
+                    onChange={e => setFormData({ ...formData, dieta_doces_frituras: e.target.value })}
                   >
-                    <option value="" disabled>Selecione...</option>
+                    <option value="">Selecione...</option>
                     <option value="nunca">Quase nunca, sou bem focado(a)</option>
                     <option value="as_vezes">Às vezes (finais de semana)</option>
                     <option value="frequentemente">Frequentemente (quase todo dia)</option>
@@ -346,12 +650,12 @@ export default function OnboardingPage() {
                 <div className="space-y-3">
                   <Label>Quantos dias por semana você vai treinar?</Label>
                   <div className="flex gap-2 flex-wrap">
-                    {['1', '2', '3', '4', '5', '6', '7'].map(d => (
-                      <Button 
-                        key={d} 
+                    {["1", "2", "3", "4", "5", "6", "7"].map(d => (
+                      <Button
+                        key={d}
                         type="button"
-                        variant={formData.diasPorSemana === d ? 'default' : 'outline'}
-                        onClick={() => setFormData({...formData, diasPorSemana: d})}
+                        variant={formData.diasPorSemana === d ? "default" : "outline"}
+                        onClick={() => setFormData({ ...formData, diasPorSemana: d })}
                         className="flex-1 h-12 text-lg"
                       >
                         {d}
@@ -361,15 +665,14 @@ export default function OnboardingPage() {
                 </div>
                 <div className="space-y-3">
                   <Label>Quanto tempo disponível por treino?</Label>
-                  <select 
+                  <select
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     value={formData.tempoPorTreino}
-                    onChange={e => setFormData({...formData, tempoPorTreino: e.target.value})}
+                    onChange={e => setFormData({ ...formData, tempoPorTreino: e.target.value })}
                   >
-                    <option value="" disabled>Selecione...</option>
-                    <option value="30">Super Rápido (30 - 40 min)</option>
-                    <option value="45">Normal (45 - 60 min)</option>
-                    <option value="90">Longo (+60 min)</option>
+                    <option value="30">Rápido e Intenso (30 - 40 min • 5 exercícios)</option>
+                    <option value="45">Ideal / Padrão (45 - 60 min • 6 a 7 exercícios)</option>
+                    <option value="90">Completo / Longo (+60 min • 7 a 8 exercícios)</option>
                   </select>
                 </div>
               </CardContent>
@@ -384,28 +687,45 @@ export default function OnboardingPage() {
                   <HeartPulse className="w-6 h-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">Saúde & Preferências</CardTitle>
-                <CardDescription>Quase lá! Detalhes para garantir a sua segurança.</CardDescription>
+                <CardDescription>Detalhes finais para personalizar sua ficha com segurança articular.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6 pt-4">
+              <CardContent className="space-y-5 pt-4">
                 <div className="space-y-2">
-                  <Label>Possui alguma lesão ou recomendação médica?</Label>
-                  <Textarea 
-                    placeholder="Ex: Hérnia de disco lombar, dor no ombro esquerdo, joelho operado..." 
+                  <Label>Possui alguma lesão ou restrição articular?</Label>
+                  <Textarea
+                    placeholder="Ex: Condromalácia patelar (dor no joelho), hérnia de disco lombar, dor no ombro..."
                     value={formData.lesoes}
-                    onChange={e => setFormData({...formData, lesoes: e.target.value})}
-                    className="min-h-[80px]"
+                    onChange={e => setFormData({ ...formData, lesoes: e.target.value })}
+                    className="min-h-[75px]"
                   />
                   <p className="text-xs text-muted-foreground">Deixe em branco se estiver 100% apto(a).</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Há algum exercício que você detesta ou ama? (Opcional)</Label>
-                  <Textarea 
-                    placeholder="Ex: Não gosto de agachamento livre, adoro treinar costas..." 
+                  <Label>Preferências de exercícios ou foco extra (Opcional)</Label>
+                  <Textarea
+                    placeholder="Ex: Quero dar foco extra em glúteo médio, não gosto de agachamento livre..."
                     value={formData.observacoes}
-                    onChange={e => setFormData({...formData, observacoes: e.target.value})}
-                    className="min-h-[80px]"
+                    onChange={e => setFormData({ ...formData, observacoes: e.target.value })}
+                    className="min-h-[75px]"
                   />
                 </div>
+
+                {hasExistingWorkouts && (
+                  <label className="flex items-start gap-3 p-3 rounded-xl bg-primary/10 border border-primary/30 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={replaceExisting}
+                      onChange={e => setReplaceExisting(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-primary"
+                    />
+                    <div className="text-xs text-gray-200">
+                      <span className="font-bold text-white block">
+                        Atualizar minhas fichas atuais para este novo ciclo de 30 dias
+                      </span>
+                      Substitui os exercícios antigos pelas novas fichas mantendo o seu histórico de sessões salvo.
+                    </div>
+                  </label>
+                )}
               </CardContent>
             </>
           )}
@@ -416,20 +736,25 @@ export default function OnboardingPage() {
               <Button variant="outline" onClick={handlePrev} className="w-32">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
               </Button>
-            ) : <div className="w-32"></div>}
+            ) : (
+              <div className="w-32"></div>
+            )}
 
             {step < 6 ? (
               <Button onClick={handleNext} className="flex-1 font-bold">
                 Próximo <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleGenerate} className="flex-1 font-bold text-lg bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform" disabled={loading}>
+              <Button
+                onClick={handleGenerate}
+                className="flex-1 font-bold text-lg bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform"
+                disabled={loading}
+              >
                 {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                Gerar Treino com IA
+                Gerar Ficha Profissional IA
               </Button>
             )}
           </div>
-
         </Card>
       </div>
     </div>
@@ -438,6 +763,20 @@ export default function OnboardingPage() {
 
 function UserIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-primary"
+    >
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
   )
 }
