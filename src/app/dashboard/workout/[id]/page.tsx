@@ -21,7 +21,8 @@ import {
   Minimize2,
   Maximize2,
   Clock,
-  RotateCcw
+  RotateCcw,
+  RefreshCw
 } from "lucide-react"
 import Link from "next/link"
 import { ExerciseVideoButton } from "@/components/ExerciseVideoModal"
@@ -59,6 +60,9 @@ export default function WorkoutSessionPage() {
   const [saving, setSaving] = useState(false)
   const [aiTips, setAiTips] = useState<Record<string, string>>({})
   const [loadingAi, setLoadingAi] = useState<Record<string, boolean>>({})
+  const [replacingEx, setReplacingEx] = useState<Record<string, boolean>>({})
+  const [replaceNotes, setReplaceNotes] = useState<Record<string, string>>({})
+  const [triedReplaceIds, setTriedReplaceIds] = useState<Record<string, string[]>>({})
 
   // Cronômetro do Tempo Total de Treino
   const [workoutStartTimestamp, setWorkoutStartTimestamp] = useState<number | null>(null)
@@ -315,6 +319,88 @@ export default function WorkoutSessionPage() {
     }
   }
 
+  const replaceExerciseWithAI = async (item: WorkoutItem) => {
+    const rowId = item.id
+    const oldExId = item.exercise_id
+    const oldName = item.exercises.name
+
+    setReplacingEx(prev => ({ ...prev, [rowId]: true }))
+    try {
+      const prevTried = triedReplaceIds[rowId] || []
+      const currentWorkoutExIds = items.map(i => i.exercise_id)
+      const excludeIds = Array.from(new Set([...currentWorkoutExIds, ...prevTried, oldExId]))
+
+      const res = await fetch("/api/ai/replace-exercise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workoutExerciseRowId: rowId,
+          currentExerciseId: oldExId,
+          currentExerciseName: oldName,
+          targetMuscle: item.exercises.target_muscle,
+          excludeExerciseIds: excludeIds
+        })
+      })
+
+      const data = await res.json()
+      if (data.error || !data.exercise) {
+        alert("Não foi possível substituir o exercício: " + (data.error || "Tente novamente"))
+        return
+      }
+
+      const newEx = data.exercise as { id: string; name: string; target_muscle: string }
+
+      setTriedReplaceIds(prev => ({
+        ...prev,
+        [rowId]: Array.from(new Set([...(prev[rowId] || []), oldExId, newEx.id]))
+      }))
+
+      // Atualiza o exercício na lista da ficha imediatamente
+      setItems(prev =>
+        prev.map(it =>
+          it.id === rowId
+            ? {
+                ...it,
+                exercise_id: newEx.id,
+                exercises: {
+                  name: newEx.name,
+                  target_muscle: newEx.target_muscle
+                }
+              }
+            : it
+        )
+      )
+
+      // Inicializa as séries para o novo exercício
+      setLogs(prev => {
+        const updated = { ...prev }
+        if (!updated[newEx.id]) {
+          updated[newEx.id] = Array.from({ length: item.default_sets }).map((_, i) => ({
+            set_number: i + 1,
+            reps: "",
+            weight: ""
+          }))
+        }
+        if (typeof window !== "undefined" && logsStorageKey) {
+          try {
+            localStorage.setItem(logsStorageKey, JSON.stringify(updated))
+          } catch {}
+        }
+        return updated
+      })
+
+      setReplaceNotes(prev => ({
+        ...prev,
+        [rowId]: `🔄 Substituído (${oldName} → ${newEx.name}): ${data.reason || "Mesma biomecânica e grupamento muscular."}`
+      }))
+    } catch (e) {
+      console.error(e)
+      alert("Erro ao buscar substituto com a IA.")
+    } finally {
+      setReplacingEx(prev => ({ ...prev, [rowId]: false }))
+    }
+  }
+
   const finishWorkout = async () => {
     // Para o cronômetro imediatamente ao clicar em Finalizar Treino
     setIsWorkoutTimerRunning(false)
@@ -346,10 +432,12 @@ export default function WorkoutSessionPage() {
       return
     }
 
-    // 2. Salvar todos os logs preenchidos
+    // 2. Salvar todos os logs preenchidos dos exercícios ativos na ficha
     const logsToInsert: any[] = []
+    const activeExerciseIds = new Set(items.map(i => i.exercise_id))
 
     Object.keys(logs).forEach(exerciseId => {
+      if (!activeExerciseIds.has(exerciseId)) return
       logs[exerciseId].forEach(log => {
         if (log.reps !== "" || log.weight !== "") {
           logsToInsert.push({
@@ -701,11 +789,11 @@ export default function WorkoutSessionPage() {
                   </div>
                 )}
                 <CardHeader
-                  className={`pb-3 flex flex-row items-start justify-between relative z-10 ${
+                  className={`pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3 relative z-10 ${
                     item.is_superset ? "pt-6" : ""
                   }`}
                 >
-                  <div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <CardTitle className="text-xl text-white">{item.exercises.name}</CardTitle>
                       <ExerciseVideoButton
@@ -733,22 +821,61 @@ export default function WorkoutSessionPage() {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-primary border-primary/50 hover:bg-primary/10 shrink-0"
-                    onClick={() => getAiTip(item)}
-                    disabled={loadingAi[item.exercise_id]}
-                  >
-                    {loadingAi[item.exercise_id] ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <BrainCircuit className="w-4 h-4 mr-2" />
-                    )}
-                    Análise IA
-                  </Button>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-amber-300 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-xs"
+                      onClick={() => replaceExerciseWithAI(item)}
+                      disabled={replacingEx[item.id]}
+                      title="Não tem este aparelho na academia? Clique para a IA substituir por outro de mesma biomecânica"
+                    >
+                      {replacingEx[item.id] ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Sem aparelho? Trocar c/ IA
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-primary border-primary/50 hover:bg-primary/10 text-xs"
+                      onClick={() => getAiTip(item)}
+                      disabled={loadingAi[item.exercise_id]}
+                    >
+                      {loadingAi[item.exercise_id] ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <BrainCircuit className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Análise IA
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="relative z-10">
+                  {replaceNotes[item.id] && (
+                    <div className="mb-3 p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-start justify-between gap-2 text-xs text-amber-100">
+                      <span className="leading-relaxed">{replaceNotes[item.id]}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReplaceNotes(prev => {
+                            const copy = { ...prev }
+                            delete copy[item.id]
+                            return copy
+                          })
+                        }
+                        className="text-amber-300 hover:text-white p-0.5 shrink-0"
+                        title="Fechar aviso"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
                   {aiTips[item.exercise_id] && (
                     <div className="mb-4 p-4 rounded-xl bg-zinc-900/90 border border-primary/35 shadow-lg space-y-2.5">
                       <div className="flex items-center justify-between border-b border-white/10 pb-2">
