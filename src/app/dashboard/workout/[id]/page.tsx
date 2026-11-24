@@ -22,7 +22,8 @@ import {
   Maximize2,
   Clock,
   RotateCcw,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from "lucide-react"
 import Link from "next/link"
 import { ExerciseVideoButton } from "@/components/ExerciseVideoModal"
@@ -63,6 +64,9 @@ export default function WorkoutSessionPage() {
   const [replacingEx, setReplacingEx] = useState<Record<string, boolean>>({})
   const [replaceNotes, setReplaceNotes] = useState<Record<string, string>>({})
   const [triedReplaceIds, setTriedReplaceIds] = useState<Record<string, string[]>>({})
+  const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({})
+  const [lastSessionNotes, setLastSessionNotes] = useState<Record<string, string>>({})
+  const [openNoteBox, setOpenNoteBox] = useState<Record<string, boolean>>({})
 
   // Cronômetro do Tempo Total de Treino
   const [workoutStartTimestamp, setWorkoutStartTimestamp] = useState<number | null>(null)
@@ -77,6 +81,7 @@ export default function WorkoutSessionPage() {
 
   const startStorageKey = id ? `workout_start_time_${id}` : ""
   const logsStorageKey = id ? `workout_draft_logs_${id}` : ""
+  const notesStorageKey = id ? `workout_draft_notes_${id}` : ""
 
   // Inicializa o cronômetro total usando localStorage (não perde se abrir o WhatsApp ou a tela apagar)
   useEffect(() => {
@@ -203,6 +208,11 @@ export default function WorkoutSessionPage() {
                 }
               })
             }
+            const savedNotesRaw = localStorage.getItem(`workout_draft_notes_${id}`)
+            if (savedNotesRaw) {
+              const parsedNotes = JSON.parse(savedNotesRaw) as Record<string, string>
+              setExerciseNotes(parsedNotes)
+            }
           } catch (e) {
             console.error("Erro ao restaurar rascunho do treino:", e)
           }
@@ -211,13 +221,27 @@ export default function WorkoutSessionPage() {
         setLogs(initialLogs)
       }
 
-      // Carrega o último treino realizado desta ficha para mostrar referência de carga/reps
-      const { data: prevSessions } = await supabase
-        .from("workout_sessions")
-        .select("id, start_time, exercise_logs(exercise_id, set_number, reps, weight)")
-        .eq("workout_id", id)
-        .order("start_time", { ascending: false })
-        .limit(5)
+      // Carrega o último treino realizado desta ficha para mostrar referência de carga/reps e observações de aparelho
+      const [{ data: prevSessions }, { data: authUser }] = await Promise.all([
+        supabase
+          .from("workout_sessions")
+          .select("id, start_time, exercise_logs(exercise_id, set_number, reps, weight)")
+          .eq("workout_id", id)
+          .order("start_time", { ascending: false })
+          .limit(5),
+        supabase.auth.getUser()
+      ])
+
+      const metaNotesMap: Record<string, string> =
+        authUser?.user?.user_metadata?.session_exercise_notes || {}
+      let localNotesMap: Record<string, string> = {}
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("gym_session_exercise_notes")
+          if (raw) localNotesMap = JSON.parse(raw)
+        } catch {}
+      }
+      const combinedNotes = { ...localNotesMap, ...metaNotesMap }
 
       if (prevSessions && prevSessions.length > 0) {
         const latestWithLogs = prevSessions.find((s: any) => s.exercise_logs && s.exercise_logs.length > 0)
@@ -229,6 +253,7 @@ export default function WorkoutSessionPage() {
             })
           )
           const map: Record<string, LastSetRecord[]> = {}
+          const prevNotesForSession: Record<string, string> = {}
           ;(latestWithLogs.exercise_logs as any[]).forEach(l => {
             if (!map[l.exercise_id]) map[l.exercise_id] = []
             map[l.exercise_id].push({
@@ -236,11 +261,19 @@ export default function WorkoutSessionPage() {
               reps: l.reps,
               weight: l.weight
             })
+            const noteKey = `${latestWithLogs.id}_${l.exercise_id}`
+            const fallbackKey = `latest_${id}_${l.exercise_id}`
+            if (combinedNotes[noteKey]) {
+              prevNotesForSession[l.exercise_id] = combinedNotes[noteKey]
+            } else if (combinedNotes[fallbackKey]) {
+              prevNotesForSession[l.exercise_id] = combinedNotes[fallbackKey]
+            }
           })
           Object.keys(map).forEach(k => {
             map[k].sort((a, b) => a.set_number - b.set_number)
           })
           setLastSessionLogs(map)
+          setLastSessionNotes(prevNotesForSession)
         }
       }
 
@@ -268,6 +301,18 @@ export default function WorkoutSessionPage() {
     })
   }
 
+  const updateExerciseNote = (exerciseId: string, value: string) => {
+    setExerciseNotes(prev => {
+      const updated = { ...prev, [exerciseId]: value }
+      if (typeof window !== "undefined" && notesStorageKey) {
+        try {
+          localStorage.setItem(notesStorageKey, JSON.stringify(updated))
+        } catch {}
+      }
+      return updated
+    })
+  }
+
   const resetCurrentDraft = () => {
     if (!confirm("Deseja zerar os campos preenchidos e reiniciar o cronômetro deste treino?")) return
     const cleared: Record<string, SetLog[]> = {}
@@ -279,11 +324,13 @@ export default function WorkoutSessionPage() {
       }))
     })
     setLogs(cleared)
+    setExerciseNotes({})
     const nowTs = Date.now()
     setWorkoutStartTimestamp(nowTs)
     setWorkoutElapsedSeconds(0)
     if (typeof window !== "undefined") {
       if (logsStorageKey) localStorage.removeItem(logsStorageKey)
+      if (notesStorageKey) localStorage.removeItem(notesStorageKey)
       if (startStorageKey) localStorage.setItem(startStorageKey, String(nowTs))
     }
   }
@@ -302,7 +349,9 @@ export default function WorkoutSessionPage() {
           targetReps: item.default_reps,
           defaultSets: item.default_sets,
           currentLogs: logs[exerciseId] || [],
-          previousLogs: lastSessionLogs[exerciseId] || []
+          previousLogs: lastSessionLogs[exerciseId] || [],
+          currentNote: exerciseNotes[exerciseId] || "",
+          previousNote: lastSessionNotes[exerciseId] || ""
         })
       })
 
@@ -458,7 +507,7 @@ export default function WorkoutSessionPage() {
       }
     }
 
-    // 3. Registra o check-in no histórico (sem bloquear caso haja política/constraint)
+    // 3. Registra o check-in no histórico e salva as observações de aparelho da sessão no perfil do usuário
     try {
       const { data: authData } = await supabase.auth.getSession()
       const userId = authData?.session?.user?.id || null
@@ -469,11 +518,53 @@ export default function WorkoutSessionPage() {
           ...(userId ? { user_id: userId } : {})
         }
       ])
+
+      // Persiste as observações de aparelho de cada exercício (no Supabase user_metadata e no localStorage)
+      const hasAnyNote = Object.keys(exerciseNotes).some(
+        exId => activeExerciseIds.has(exId) && exerciseNotes[exId]?.trim()
+      )
+      if (hasAnyNote) {
+        const existingMetaNotes =
+          authData?.session?.user?.user_metadata?.session_exercise_notes || {}
+        let existingLocalNotes: Record<string, string> = {}
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("gym_session_exercise_notes")
+            if (raw) existingLocalNotes = JSON.parse(raw)
+          } catch {}
+        }
+
+        const updatedNotesMap: Record<string, string> = {
+          ...existingLocalNotes,
+          ...existingMetaNotes
+        }
+
+        Object.keys(exerciseNotes).forEach(exId => {
+          const cleanNote = (exerciseNotes[exId] || "").trim()
+          if (activeExerciseIds.has(exId) && cleanNote) {
+            updatedNotesMap[`${session.id}_${exId}`] = cleanNote
+            updatedNotesMap[`latest_${id}_${exId}`] = cleanNote
+          }
+        })
+
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("gym_session_exercise_notes", JSON.stringify(updatedNotesMap))
+          } catch {}
+        }
+
+        await supabase.auth.updateUser({
+          data: {
+            session_exercise_notes: updatedNotesMap
+          }
+        })
+      }
     } catch {}
 
     // 4. Limpa o rascunho salvo no celular somente após salvar com sucesso no banco!
     if (typeof window !== "undefined") {
       if (logsStorageKey) localStorage.removeItem(logsStorageKey)
+      if (notesStorageKey) localStorage.removeItem(notesStorageKey)
       if (startStorageKey) localStorage.removeItem(startStorageKey)
     }
 
@@ -818,10 +909,35 @@ export default function WorkoutSessionPage() {
                             {i < prevSets.length - 1 ? " • " : ""}
                           </span>
                         ))}
+                        {lastSessionNotes[item.exercise_id] && (
+                          <span className="ml-1 inline-flex items-center gap-1 text-[11px] bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full">
+                            📝 {lastSessionNotes[item.exercise_id]}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={`text-xs ${
+                        exerciseNotes[item.exercise_id]?.trim()
+                          ? "text-sky-300 border-sky-400/60 bg-sky-500/20 hover:bg-sky-500/30 font-semibold"
+                          : "text-gray-200 border-white/20 bg-white/5 hover:bg-white/10"
+                      }`}
+                      onClick={() =>
+                        setOpenNoteBox(prev => ({
+                          ...prev,
+                          [item.exercise_id]: !prev[item.exercise_id]
+                        }))
+                      }
+                      title="Informar se fez no aparelho original, no crossover/polia, halteres ou adicionar observação sobre o peso"
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1.5" />
+                      {exerciseNotes[item.exercise_id]?.trim() ? "Obs Salva ✓" : "Obs / Aparelho"}
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
@@ -856,6 +972,72 @@ export default function WorkoutSessionPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="relative z-10">
+                  {/* CAMPO DE OBSERVAÇÃO / VARIAÇÃO DE APARELHO (Ex: Barra W livre ocupada -> feito no Crossover) */}
+                  {(openNoteBox[item.exercise_id] || Boolean(exerciseNotes[item.exercise_id]?.trim())) && (
+                    <div className="mb-4 p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5" />
+                          Observação do Exercício / Aparelho Utilizado Hoje
+                        </span>
+                        {openNoteBox[item.exercise_id] && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenNoteBox(prev => ({ ...prev, [item.exercise_id]: false }))
+                            }
+                            className="text-gray-400 hover:text-white text-xs"
+                          >
+                            Minimizar
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          "Feito no Aparelho Original",
+                          "Feito no Crossover / Polia (aparelho ocupado)",
+                          "Feito na Barra W / Livre",
+                          "Feito com Halteres",
+                          "Feito na Máquina / Guiado"
+                        ].map(preset => {
+                          const currentVal = exerciseNotes[item.exercise_id] || ""
+                          const isSelected = currentVal.toLowerCase().includes(preset.toLowerCase())
+                          return (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() =>
+                                updateExerciseNote(
+                                  item.exercise_id,
+                                  isSelected ? "" : preset
+                                )
+                              }
+                              className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
+                                isSelected
+                                  ? "bg-sky-400 text-black font-bold border-sky-300"
+                                  : "bg-background/60 text-gray-200 border-white/15 hover:border-sky-400/50"
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      <Input
+                        type="text"
+                        placeholder="Ex: Barra W livre estava ocupada, fiz na Barra W no Crossover (peso da polia muda)..."
+                        value={exerciseNotes[item.exercise_id] || ""}
+                        onChange={e => updateExerciseNote(item.exercise_id, e.target.value)}
+                        className="h-9 text-xs bg-background/80 border-sky-500/30 text-white"
+                      />
+                      <p className="text-[11px] text-sky-200/80">
+                        💡 Ao clicar em <strong>Análise IA</strong> ou salvar o treino, a IA considera esta observação para analisar a diferença de peso entre os aparelhos.
+                      </p>
+                    </div>
+                  )}
+
                   {replaceNotes[item.id] && (
                     <div className="mb-3 p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-start justify-between gap-2 text-xs text-amber-100">
                       <span className="leading-relaxed">{replaceNotes[item.id]}</span>

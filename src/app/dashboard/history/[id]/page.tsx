@@ -48,6 +48,7 @@ export default function WorkoutHistoryPage() {
 
   const [workoutName, setWorkoutName] = useState("")
   const [sessions, setSessions] = useState<SessionItem[]>([])
+  const [sessionNotes, setSessionNotes] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   const formatDurationHuman = (totalSeconds: number) => {
@@ -75,13 +76,23 @@ export default function WorkoutHistoryPage() {
 
   const loadHistory = async () => {
     setLoading(true)
-    const { data: wData } = await supabase
-      .from("workouts")
-      .select("name")
-      .eq("id", id)
-      .single()
+    const [{ data: wData }, { data: authUser }] = await Promise.all([
+      supabase.from("workouts").select("name").eq("id", id).single(),
+      supabase.auth.getUser()
+    ])
 
     if (wData) setWorkoutName(wData.name)
+
+    const metaNotes: Record<string, string> =
+      authUser?.user?.user_metadata?.session_exercise_notes || {}
+    let localNotes: Record<string, string> = {}
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("gym_session_exercise_notes")
+        if (raw) localNotes = JSON.parse(raw)
+      } catch {}
+    }
+    setSessionNotes({ ...localNotes, ...metaNotes })
 
     const { data: sData, error } = await supabase
       .from("workout_sessions")
@@ -153,13 +164,26 @@ export default function WorkoutHistoryPage() {
   }
 
   const getEvolutionBadge = (sessionIndex: number, exerciseId: string, currentMaxWeight: number, currentVolume: number) => {
+    const currentSession = sessions[sessionIndex]
+    const currentNote = currentSession ? sessionNotes[`${currentSession.id}_${exerciseId}`] : ""
+
     if (sessionIndex >= sessions.length - 1) return null
     const previousSession = sessions[sessionIndex + 1]
     if (!previousSession) return null
 
+    const prevNote = sessionNotes[`${previousSession.id}_${exerciseId}`] || ""
     const prevGroups = groupLogsByExercise(previousSession.exercise_logs)
     const prevEx = prevGroups.find(g => g.exerciseId === exerciseId)
     if (!prevEx) return null
+
+    // Se houve troca de aparelho registrada na observação (ex: Barra W livre vs Crossover), sinaliza que a carga mudou pelo aparelho
+    if ((currentNote || prevNote) && currentNote.toLowerCase() !== prevNote.toLowerCase()) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/35">
+          🔄 Peso em aparelho variado ({prevEx.maxWeight}kg → {currentMaxWeight}kg)
+        </span>
+      )
+    }
 
     const weightDiff = currentMaxWeight - prevEx.maxWeight
     const volumeDiff = currentVolume - prevEx.totalVolume
@@ -343,40 +367,52 @@ export default function WorkoutHistoryPage() {
                       Treino finalizado sem séries preenchidas.
                     </p>
                   ) : (
-                    groupedExercises.map(ex => (
-                      <div
-                        key={ex.exerciseId}
-                        className="p-3.5 rounded-xl bg-background/50 border border-white/10 space-y-2.5"
-                      >
-                        <div className="flex items-start justify-between gap-2 flex-wrap">
-                          <div>
-                            <h3 className="font-bold text-white text-base">{ex.name}</h3>
-                            <p className="text-xs text-gray-400">
-                              Músculo: <span className="text-primary font-medium">{ex.targetMuscle}</span> • Carga máx:{" "}
-                              <strong className="text-white">{ex.maxWeight} kg</strong>
-                            </p>
+                    groupedExercises.map(ex => {
+                      const exNote = sessionNotes[`${session.id}_${ex.exerciseId}`]
+                      return (
+                        <div
+                          key={ex.exerciseId}
+                          className="p-3.5 rounded-xl bg-background/50 border border-white/10 space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div>
+                              <h3 className="font-bold text-white text-base">{ex.name}</h3>
+                              <p className="text-xs text-gray-400">
+                                Músculo: <span className="text-primary font-medium">{ex.targetMuscle}</span> • Carga máx:{" "}
+                                <strong className="text-white">{ex.maxWeight} kg</strong>
+                              </p>
+                            </div>
+                            {getEvolutionBadge(sIdx, ex.exerciseId, ex.maxWeight, ex.totalVolume)}
                           </div>
-                          {getEvolutionBadge(sIdx, ex.exerciseId, ex.maxWeight, ex.totalVolume)}
-                        </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-                          {ex.sets.map(set => (
-                            <div
-                              key={set.id}
-                              className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm"
-                            >
-                              <span className="text-xs font-medium text-gray-400">
-                                {set.set_number}ª Série
-                              </span>
-                              <span className="font-bold text-white">
-                                {set.reps} <span className="text-xs font-normal text-gray-300">reps</span> ×{" "}
-                                <span className="text-emerald-400">{set.weight}kg</span>
+                          {exNote && (
+                            <div className="px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-xs text-sky-200 flex items-center gap-1.5">
+                              <span>📝</span>
+                              <span>
+                                <strong>Observação / Aparelho:</strong> {exNote}
                               </span>
                             </div>
-                          ))}
+                          )}
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                            {ex.sets.map(set => (
+                              <div
+                                key={set.id}
+                                className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm"
+                              >
+                                <span className="text-xs font-medium text-gray-400">
+                                  {set.set_number}ª Série
+                                </span>
+                                <span className="font-bold text-white">
+                                  {set.reps} <span className="text-xs font-normal text-gray-300">reps</span> ×{" "}
+                                  <span className="text-emerald-400">{set.weight}kg</span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </CardContent>
               </Card>

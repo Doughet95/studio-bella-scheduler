@@ -219,10 +219,41 @@ function buildExpertAnalysis(params: {
   defaultSets: number
   validLogs: { set_number: number; reps: number; weight: number }[]
   previousLogs: { set_number: number; reps: number; weight: number }[]
+  currentNote?: string
+  previousNote?: string
 }): string {
-  const { exerciseName, targetMuscle, targetReps, defaultSets, validLogs, previousLogs } = params
+  const {
+    exerciseName,
+    targetMuscle,
+    targetReps,
+    defaultSets,
+    validLogs,
+    previousLogs,
+    currentNote = "",
+    previousNote = ""
+  } = params
   const { min: minTarget, max: maxTarget } = parseTargetRange(targetReps)
   const bio = getBiomechanicsGuide(exerciseName, targetMuscle)
+  const noteClean = currentNote.trim()
+  const prevNoteClean = previousNote.trim()
+  const noteLower = noteClean.toLowerCase()
+
+  const equipmentContextTip = (() => {
+    if (!noteClean) return ""
+    if (noteLower.includes("crossover") || noteLower.includes("polia") || noteLower.includes("cabo")) {
+      return ` Na adaptação para o Crossover/Polia ("${noteClean}"), lembre-se de que o sistema de roldanas altera o peso real percebido em relação ao peso livre e mantém tensão contínua durante todo o arco articular: afaste-se um passo da polia para não perder tensão na fase inicial.`
+    }
+    if (noteLower.includes("halter")) {
+      return ` Na execução adaptada com Halteres ("${noteClean}"), há maior exigência dos músculos estabilizadores de forma unilateral; por isso a carga total costuma ser diferente da barra ou máquina guiada.`
+    }
+    if (noteLower.includes("máquina") || noteLower.includes("maquina") || noteLower.includes("smith") || noteLower.includes("guiad")) {
+      return ` Na adaptação para Máquina/Aparelho Guiado ("${noteClean}"), a estabilidade do trilho permite isolar o músculo alvo com uma relação de carga própria da alavanca do aparelho.`
+    }
+    if (noteLower.includes("barra")) {
+      return ` Na execução com Barra Livre/W ("${noteClean}"), a resistência é gravitacional pura (sem desmultiplicação de polias), exigindo forte estabilização de punhos e core.`
+    }
+    return ` Observação considerada ("${noteClean}"): a mudança de aparelho ou variação altera a curva de resistência mecânica, portanto avalie a carga pela qualidade das repetições na faixa alvo.`
+  })()
 
   // Caso ainda não tenha preenchido nenhuma série hoje
   if (validLogs.length === 0) {
@@ -230,12 +261,17 @@ function buildExpertAnalysis(params: {
     if (previousLogs && previousLogs.length > 0) {
       const prevSummary = previousLogs.map(p => `${p.set_number}ª: ${p.reps}x${p.weight}kg`).join(", ")
       const maxPrevWeight = Math.max(...previousLogs.map(p => Number(p.weight) || 0))
-      prevText = `No seu último registro você realizou (${prevSummary}), atingindo pico de ${maxPrevWeight}kg. Hoje, inicie sua 1ª série de trabalho buscando manter ou superar em 1 repetição essa marca dentro da faixa alvo de ${targetReps || "8-12"} reps.`
+      prevText = `No seu último registro você realizou (${prevSummary}), atingindo pico de ${maxPrevWeight}kg${
+        prevNoteClean ? ` [Obs do último treino: "${prevNoteClean}"]` : ""
+      }. Hoje, inicie sua 1ª série de trabalho buscando manter ou superar em 1 repetição essa marca dentro da faixa alvo de ${targetReps || "8-12"} reps.`
+    }
+    if (noteClean) {
+      prevText += ` Como hoje você registrou a observação "${noteClean}", ajuste o peso da 1ª série para a mecânica específica deste aparelho.`
     }
 
     return [
       `📊 Planejamento de Carga: ${prevText}`,
-      `🎯 Biomecânica e Execução: ${bio.execution}`,
+      `🎯 Biomecânica e Execução: ${bio.execution}${equipmentContextTip}`,
       `🛡️ Orientação Ética e Articular: ${bio.safety}`
     ].join("\n\n")
   }
@@ -244,9 +280,7 @@ function buildExpertAnalysis(params: {
   const firstSet = validLogs[0]
   const lastSet = validLogs[validLogs.length - 1]
   const weights = validLogs.map(l => l.weight)
-  const repsList = validLogs.map(l => l.reps)
   const maxWeightToday = Math.max(...weights)
-  const minWeightToday = Math.min(...weights)
   const isPyramidUp = validLogs.length >= 2 && lastSet.weight > firstSet.weight
   const completedAllSets = validLogs.length >= (defaultSets || 3)
 
@@ -257,15 +291,15 @@ function buildExpertAnalysis(params: {
     if (firstSet.reps > maxTarget && lastSet.reps >= minTarget && lastSet.reps <= maxTarget) {
       performanceAnalysis = `Você aplicou uma progressão piramidal crescente excelente (${setsDesc}). As séries iniciais com ${firstSet.reps} reps serviram como preparação neuromotora e, na série de topo com ${lastSet.weight}kg, você cravou ${lastSet.reps} repetições — exatamente dentro da janela alvo de hipertrofia (${targetReps} reps). ${
         completedAllSets
-          ? `Para o próximo treino, como você já domina ${lastSet.weight}kg para ${lastSet.reps} reps, experimente iniciar suas séries principais já com cerca de ${
+          ? `Para o próximo treino neste mesmo equipamento, como você já domina ${lastSet.weight}kg para ${lastSet.reps} reps, experimente iniciar suas séries principais já com cerca de ${
               validLogs[1]?.weight || lastSet.weight
             }kg após 1 série de aquecimento, otimizando o volume efetivo.`
           : `Para a próxima série, mantenha ${lastSet.weight}kg buscando permanecer entre ${minTarget} e ${maxTarget} repetições.`
       }`
     } else if (lastSet.reps > maxTarget) {
-      performanceAnalysis = `Você subiu a carga progressivamente (${setsDesc}), mas mesmo na série mais pesada (${lastSet.weight}kg) realizou ${lastSet.reps} repetições, acima do teto proposto de ${maxTarget} reps. Isso indica que sua força atual já supera essa carga: ${
+      performanceAnalysis = `Você subiu a carga progressivamente (${setsDesc}), mas mesmo na série mais pesada (${lastSet.weight}kg) realizou ${lastSet.reps} repetições, acima do teto proposto de ${maxTarget} reps. Isso indica que sua força atual neste aparelho já supera essa carga: ${
         completedAllSets
-          ? `no próximo treino, inicie as séries de trabalho a partir de ${lastSet.weight}kg para trabalhar de fato na faixa de ${targetReps} repetições.`
+          ? `no próximo treino neste equipamento, inicie as séries de trabalho a partir de ${lastSet.weight}kg para trabalhar de fato na faixa de ${targetReps} repetições.`
           : `na próxima série, você pode ajustar a carga em +2kg a +5kg com segurança, desde que mantenha o controle excêntrico.`
       }`
     } else {
@@ -281,7 +315,7 @@ function buildExpertAnalysis(params: {
     if (lastSet.reps > maxTarget) {
       performanceAnalysis = `Nas séries registradas (${setsDesc}), você superou o limite superior da faixa alvo (${targetReps} reps) fazendo ${lastSet.reps} repetições com ${lastSet.weight}kg. Sob o ponto de vista fisiológico, quando ultrapassamos ${maxTarget} reps com margem, o estímulo migra para resistência muscular: ${
         completedAllSets
-          ? `na próxima sessão, ajuste a carga inicial em cerca de 5% a 10% para trabalhar com maior tensão mecânica dentro de ${minTarget}-${maxTarget} reps.`
+          ? `na próxima sessão neste mesmo aparelho, ajuste a carga inicial em cerca de 5% a 10% para trabalhar com maior tensão mecânica dentro de ${minTarget}-${maxTarget} reps.`
           : `na próxima série, um incremento moderado de carga colocará você exatamente na zona alvo de ${minTarget}-${maxTarget} reps.`
       }`
     } else if (lastSet.reps >= minTarget && lastSet.reps <= maxTarget) {
@@ -292,7 +326,7 @@ function buildExpertAnalysis(params: {
           : ""
       }. ${
         completedAllSets
-          ? `Você concluiu todas as ${validLogs.length} séries no alvo: no próximo treino, tente progredir 1 repetição em cada série com ${lastSet.weight}kg antes de elevar a carga.`
+          ? `Você concluiu todas as ${validLogs.length} séries no alvo: no próximo treino neste aparelho, tente progredir 1 repetição em cada série com ${lastSet.weight}kg antes de elevar a carga.`
           : `Mantenha ${lastSet.weight}kg na próxima série respeitando 60s a 90s de descanso para sustentar a qualidade das repetições.`
       }`
     } else {
@@ -304,8 +338,16 @@ function buildExpertAnalysis(params: {
     }
   }
 
-  // Comparação com o treino anterior se existir
-  if (previousLogs && previousLogs.length > 0) {
+  // Comparação inteligente com o treino anterior considerando observações de troca de aparelho
+  if (noteClean || prevNoteClean) {
+    if (noteClean && prevNoteClean && noteClean.toLowerCase() !== prevNoteClean.toLowerCase()) {
+      performanceAnalysis += ` 📌 Nota de Equipamento: Hoje você registrou "${noteClean}", enquanto no treino anterior havia registrado "${prevNoteClean}". A diferença de carga numérica em kg entre os dois treinos é totalmente normal devido à mudança de aparelho/polias.`
+    } else if (noteClean) {
+      performanceAnalysis += ` 📌 Observação do Treino ("${noteClean}"): Como houve variação no aparelho/execução hoje, a carga de ${maxWeightToday}kg reflete a resistência específica deste equipamento (diferente do peso livre/original).`
+    } else if (prevNoteClean) {
+      performanceAnalysis += ` 📌 Nota Histórica: No último treino sua carga foi registrada com a observação "${prevNoteClean}", o que explica diferenças de peso para o aparelho padrão de hoje.`
+    }
+  } else if (previousLogs && previousLogs.length > 0) {
     const prevMaxWeight = Math.max(...previousLogs.map(p => Number(p.weight) || 0))
     if (maxWeightToday > prevMaxWeight && prevMaxWeight > 0) {
       performanceAnalysis += ` Além disso, você registrou uma evolução real de +${
@@ -316,7 +358,7 @@ function buildExpertAnalysis(params: {
 
   return [
     `📊 Análise de Desempenho e Progressão: ${performanceAnalysis}`,
-    `🎯 Biomecânica e Execução (${exerciseName}): ${bio.execution}`,
+    `🎯 Biomecânica e Execução (${exerciseName}): ${bio.execution}${equipmentContextTip}`,
     `🛡️ Conduta Ética e Segurança: ${bio.safety}`
   ].join("\n\n")
 }
@@ -330,7 +372,9 @@ export async function POST(req: Request) {
       targetReps = "08-12",
       defaultSets = 3,
       currentLogs = [],
-      previousLogs = []
+      previousLogs = [],
+      currentNote = "",
+      previousNote = ""
     } = body
 
     const validLogs = (currentLogs as SetEntry[])
@@ -356,7 +400,9 @@ export async function POST(req: Request) {
       targetReps,
       defaultSets: Number(defaultSets) || 3,
       validLogs,
-      previousLogs: validPrevLogs
+      previousLogs: validPrevLogs,
+      currentNote: String(currentNote || ""),
+      previousNote: String(previousNote || "")
     })
 
     const apiKey = process.env.GEMINI_API_KEY || ""
@@ -377,19 +423,22 @@ export async function POST(req: Request) {
     const prompt = `Você é um Treinador de Musculação Certificado (CREF) e Especialista em Biomecânica e Fisiologia do Exercício.
 Forneça uma análise técnica, ética, explicativa e personalizada em Português do Brasil para o aluno que está executando o exercício abaixo.
 NÃO use frases genéricas ou simplórias. Analise TODAS as séries que ele preencheu em conjunto (observando se houve pirâmide de peso, se as repetições ficaram acima/dentro/abaixo da faixa alvo, se ele já completou todas as séries previstas ou se ainda há séries restantes, e compare com o treino anterior).
+ATENÇÃO ESPECIAL À OBSERVAÇÃO DE APARELHO DO ALUNO: Se o aluno informou na observação que fez o exercício em outro aparelho (por exemplo, barra W ocupada e fez no crossover/polia, ou trocou peso livre por máquina/halteres), explique tecnicamente na análise que a variação de carga em kg ocorre por conta da diferença mecânica entre os equipamentos (polias/roldanas vs peso livre), avaliando o desempenho dele no aparelho que ele utilizou hoje!
 
 Dados do Exercício:
-- Nome do Exercício: ${exerciseName}
+- Nome do Exercício na Ficha: ${exerciseName}
 - Músculo Alvo: ${targetMuscle}
 - Meta da Ficha: ${defaultSets} séries de ${targetReps} repetições
 - Séries realizadas HOJE até o momento (${validLogs.length} de ${defaultSets} séries): ${currentSetsText}
+- Observação / Aparelho utilizado HOJE pelo aluno: ${currentNote ? `"${currentNote}"` : "Executado no aparelho original da ficha"}
 - Séries realizadas no ÚLTIMO TREINO: ${prevSetsText}
+- Observação / Aparelho utilizado no ÚLTIMO TREINO: ${previousNote ? `"${previousNote}"` : "Aparelho original da ficha"}
 
 Estruture sua resposta EXATAMENTE nestes 3 parágrafos curtos e diretos (use os emojis indicados no início de cada parágrafo, sem usar asteriscos de markdown **):
 
-📊 Análise de Desempenho e Progressão: (Analise tecnicamente os números de todas as séries feitas hoje em relação à meta de ${targetReps} reps e ao treino anterior, explicando por que a progressão dele foi boa ou como ajustar a carga/repetições de forma inteligente para a próxima série ou próximo treino).
+📊 Análise de Desempenho e Progressão: (Analise tecnicamente os números de todas as séries feitas hoje em relação à meta de ${targetReps} reps, levando em conta a observação de aparelho informado pelo aluno e comparando de forma inteligente com o treino anterior).
 
-🎯 Biomecânica e Execução: (Explique de forma profissional como otimizar a postura, o alinhamento articular, a cadência excêntrica/concêntrica e a ativação de ${targetMuscle} especificamente no exercício ${exerciseName}).
+🎯 Biomecânica e Execução: (Explique de forma profissional como otimizar a postura, o alinhamento articular, a cadência excêntrica/concêntrica e a ativação de ${targetMuscle} considerando o exercício ${exerciseName} e o aparelho citado na observação).
 
 🛡️ Conduta Ética e Segurança: (Dê uma orientação ética e responsável sobre controle de movimento, percepção de esforço e preservação articular específica para este movimento).`
 

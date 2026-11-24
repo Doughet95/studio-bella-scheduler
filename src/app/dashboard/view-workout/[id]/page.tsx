@@ -30,6 +30,7 @@ export default function ViewWorkoutPage() {
   const [workoutName, setWorkoutName] = useState("")
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [lastSessionLogs, setLastSessionLogs] = useState<Record<string, LastSetRecord[]>>({})
+  const [lastSessionNotes, setLastSessionNotes] = useState<Record<string, string>>({})
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [replacingEx, setReplacingEx] = useState<Record<string, boolean>>({})
@@ -51,12 +52,26 @@ export default function ViewWorkoutPage() {
         setItems(exData as any)
       }
 
-      const { data: prevSessions } = await supabase
-        .from("workout_sessions")
-        .select("id, start_time, exercise_logs(exercise_id, set_number, reps, weight)")
-        .eq("workout_id", id)
-        .order("start_time", { ascending: false })
-        .limit(5)
+      const [{ data: prevSessions }, { data: authUser }] = await Promise.all([
+        supabase
+          .from("workout_sessions")
+          .select("id, start_time, exercise_logs(exercise_id, set_number, reps, weight)")
+          .eq("workout_id", id)
+          .order("start_time", { ascending: false })
+          .limit(5),
+        supabase.auth.getUser()
+      ])
+
+      const metaNotes: Record<string, string> =
+        authUser?.user?.user_metadata?.session_exercise_notes || {}
+      let localNotes: Record<string, string> = {}
+      if (typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("gym_session_exercise_notes")
+          if (raw) localNotes = JSON.parse(raw)
+        } catch {}
+      }
+      const combinedNotes = { ...localNotes, ...metaNotes }
 
       if (prevSessions && prevSessions.length > 0) {
         const latestWithLogs = prevSessions.find((s: any) => s.exercise_logs && s.exercise_logs.length > 0)
@@ -69,6 +84,7 @@ export default function ViewWorkoutPage() {
             })
           )
           const map: Record<string, LastSetRecord[]> = {}
+          const notesForSession: Record<string, string> = {}
           ;(latestWithLogs.exercise_logs as any[]).forEach(l => {
             if (!map[l.exercise_id]) map[l.exercise_id] = []
             map[l.exercise_id].push({
@@ -76,11 +92,16 @@ export default function ViewWorkoutPage() {
               reps: l.reps,
               weight: l.weight
             })
+            const key1 = `${latestWithLogs.id}_${l.exercise_id}`
+            const key2 = `latest_${id}_${l.exercise_id}`
+            if (combinedNotes[key1]) notesForSession[l.exercise_id] = combinedNotes[key1]
+            else if (combinedNotes[key2]) notesForSession[l.exercise_id] = combinedNotes[key2]
           })
           Object.keys(map).forEach(k => {
             map[k].sort((a, b) => a.set_number - b.set_number)
           })
           setLastSessionLogs(map)
+          setLastSessionNotes(notesForSession)
         }
       }
 
@@ -287,6 +308,11 @@ export default function ViewWorkoutPage() {
                           </span>
                         ))}
                       </div>
+                      {lastSessionNotes[item.exercise_id] && (
+                        <p className="text-xs text-sky-300 bg-sky-500/15 border border-sky-500/30 px-2.5 py-1 rounded-md mt-1.5">
+                          📝 <strong>Obs do último treino:</strong> {lastSessionNotes[item.exercise_id]}
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>
